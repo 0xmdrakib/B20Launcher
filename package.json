@@ -1,0 +1,21 @@
+{
+  "name": "b20-launcher",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Production-oriented Base B20 token launch platform with human UI, x402 agent API, and contract router scaffolding.",
+  "packageManager": "pnpm@10.33.2",
+  "scripts": {
+    "dev": "pnpm --filter @base-b20/b20 build && concurrently -n web,api -c auto \"pnpm --filter @base-b20/web dev\" \"pnpm --filter @base-b20/api dev\"",
+    "dev:web": "pnpm --filter @base-b20/web dev",
+    "dev:api": "pnpm --filter @base-b20/api dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "test:e2e": "pnpm --filter @base-b20/web test:e2e",
+    "typecheck": "pnpm --filter @base-b20/b20 build && pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,15 @@
+node_modules
+.next
+dist
+coverage
+test-results
+playwright-report
+*.tsbuildinfo
+.turbo
+.env
+.env.local
+apps/api/uploads
+packages/contracts/out
+packages/contracts/cache
+packages/contracts/lib
+*.log

@@ -1,0 +1,11 @@
+{
+  "name": "@base-b20/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node ./scripts/run-foundry.mjs build",
+    "test": "node ./scripts/run-foundry.mjs test",
+    "typecheck": "node ./scripts/run-foundry.mjs build"
+  }
+}

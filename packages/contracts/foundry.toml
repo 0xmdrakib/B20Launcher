@@ -1,0 +1,17 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+solc_version = "0.8.26"
+optimizer = true
+optimizer_runs = 500
+base = true
+remappings = [
+  "base-std/=lib/base-std/src/",
+  "forge-std/=lib/forge-std/src/"
+]
+
+[fmt]
+line_length = 100
+tab_width = 4
+bracket_spacing = false
