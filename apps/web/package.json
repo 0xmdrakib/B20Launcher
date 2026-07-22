@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev --turbopack --port 3000",
+    "prebuild": "pnpm --filter @base-b20/b20 build",
     "build": "next build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run src --passWithNoTests",
