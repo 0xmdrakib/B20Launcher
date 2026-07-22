@@ -337,10 +337,6 @@ class PostgresStore implements Store {
   }
 }
 
-if (config.NODE_ENV === "production" && !config.DATABASE_URL) {
-  throw new Error("DATABASE_URL is required in production for durable, abuse-resistant metadata staging.");
-}
-
 export const store: Store = config.NODE_ENV !== "test" && config.DATABASE_URL
   ? new PostgresStore(config.DATABASE_URL)
   : new MemoryStore();
@@ -349,6 +345,10 @@ let storeInitialization: Promise<void> | undefined;
 let lastCleanupAt = 0;
 
 export async function ensureStoreReady() {
+  if (config.NODE_ENV === "production" && !config.DATABASE_URL) {
+    throw new Error("DATABASE_URL is required in production for durable, abuse-resistant metadata staging.");
+  }
+
   storeInitialization ??= store.initialize().catch((error) => {
     storeInitialization = undefined;
     throw error;
