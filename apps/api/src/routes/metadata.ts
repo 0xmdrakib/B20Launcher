@@ -9,7 +9,7 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_LOGO_BYTES, files: 1 }
 });
-export const metadataRouter = Router();
+export const metadataRouter: Router = Router();
 const stageLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   limit: 12,

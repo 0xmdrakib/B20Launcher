@@ -3,7 +3,8 @@
 ## Runtime Surfaces
 
 - `apps/web`: Next.js issuer console for metadata, role setup, launch preview, wallet signing, and operations visibility.
-- `apps/api`: Express API for IPFS metadata preparation, launch quote/build, x402-protected agent build, status, and CDP SQL hooks.
+- `apps/api`: Framework-neutral server core plus an Express compatibility adapter for IPFS metadata preparation, launch quote/build, status, and CDP SQL hooks.
+- `apps/web/app/api` and `apps/web/app/x402`: Primary same-origin Next.js Route Handlers used by the Vercel deployment, including x402 payment protection.
 - `packages/b20`: Shared source of truth for schemas, ABI, B20 address derivation, Builder Code suffixing, and unsigned transaction packages.
 - `packages/contracts`: `B20LaunchRouter`, a fee-free route into Base's native `B20Factory`.
 
@@ -35,7 +36,7 @@
 
 ## Agent Flow
 
-`POST /x402/b20/build` returns:
+`POST /x402/b20/build` is served by the same-origin Next.js Route Handler in production and returns:
 
 ```json
 {
@@ -59,6 +60,6 @@ The agent signs and submits with its own wallet.
 - Register `BASE_BUILDER_CODE` in Base dashboard and verify attribution on a Sepolia launch.
 - Configure a Lighthouse API key and, when available, a dedicated Lighthouse gateway.
 - Configure a pooled Neon Postgres `DATABASE_URL` and verify expiry cleanup in the deployment environment.
-- Configure CDP SQL API and x402 CDP facilitator.
+- Configure the Lighthouse, Neon, and x402 facilitator services required by the selected environment.
 - Run `pnpm build`, `pnpm test`, and `base-forge test -vvv`.
 - Dry run Base Sepolia launch with IPFS metadata and policy settings before Base Mainnet.

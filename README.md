@@ -68,7 +68,8 @@ The app focuses on transparent issuance. It shows the predicted token address, e
 - TypeScript
 - wagmi
 - viem
-- Express
+- Next.js Route Handlers
+- Express compatibility adapter
 - Zod
 - Lighthouse IPFS
 - Neon Postgres

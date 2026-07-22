@@ -9,7 +9,7 @@ import { z } from "zod";
 import { buildContractMetadata, type ContractMetadata } from "@base-b20/b20";
 
 import { config } from "../config.js";
-import { ApiError } from "../lib/http.js";
+import { ApiError } from "../lib/errors.js";
 import { store, type MetadataStageRecord } from "./store.js";
 
 const metadataPrepareSchema = z.object({
@@ -177,7 +177,14 @@ async function verifyGateways(objects: IpfsObject[]): Promise<GatewayHealth[]> {
   return health;
 }
 
-async function normalizeLogo(file?: Express.Multer.File): Promise<Buffer> {
+export type UploadedLogo = {
+  originalname: string;
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
+};
+
+async function normalizeLogo(file?: UploadedLogo): Promise<Buffer> {
   if (!file) throw new ApiError("A token logo is required.", 400);
   if (!["image/png", "image/jpeg", "image/webp"].includes(file.mimetype)) {
     throw new ApiError("Logo must be PNG, JPEG, or WebP.", 400);
@@ -254,7 +261,7 @@ async function findSuccessfulReceipt(hash: Hex) {
 
 export async function prepareMetadata(
   input: MetadataPrepareInput,
-  file?: Express.Multer.File
+  file?: UploadedLogo
 ): Promise<PreparedMetadata> {
   const parsed = metadataPrepareSchema.parse(input);
   const logoBody = await normalizeLogo(file);

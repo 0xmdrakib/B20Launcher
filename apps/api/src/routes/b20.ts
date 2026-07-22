@@ -5,7 +5,7 @@ import { ApiError, asyncHandler } from "../lib/http.js";
 import { buildLaunchPackage, getB20Status, quoteLaunch } from "../services/b20.js";
 import { queryRecentB20Creations } from "../services/sql.js";
 
-export const b20Router = Router();
+export const b20Router: Router = Router();
 
 function metadataAuth(req: { get(name: string): string | undefined }) {
   return {

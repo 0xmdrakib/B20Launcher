@@ -29,6 +29,12 @@ export type MetadataStageRecord<TPrepared = unknown> = {
   txHash?: Hex;
 };
 
+export type RateLimitResult = {
+  allowed: boolean;
+  remaining: number;
+  resetAt: number;
+};
+
 export interface Store {
   readonly kind: "memory" | "postgres";
   initialize(): Promise<void>;
@@ -45,12 +51,14 @@ export interface Store {
   completeMetadataStage(stageId: string, prepared: unknown, txHash: Hex): Promise<void>;
   deleteMetadataStage(stageId: string): Promise<void>;
   cleanupMetadataStages(): Promise<number>;
+  consumeRateLimit(key: string, limit: number, windowMs: number): Promise<RateLimitResult>;
 }
 
 class MemoryStore implements Store {
   readonly kind = "memory" as const;
   private readonly launches = new Map<string, LaunchRecord>();
   private readonly metadataStages = new Map<string, MetadataStageRecord>();
+  private readonly rateLimits = new Map<string, { windowStart: number; hits: number }>();
 
   async initialize() {}
 
@@ -119,6 +127,22 @@ class MemoryStore implements Store {
     }
     return removed;
   }
+
+  async consumeRateLimit(key: string, limit: number, windowMs: number) {
+    const now = Date.now();
+    const windowStart = Math.floor(now / windowMs) * windowMs;
+    for (const [storedKey, entry] of this.rateLimits) {
+      if (entry.windowStart + windowMs <= now) this.rateLimits.delete(storedKey);
+    }
+    const current = this.rateLimits.get(key);
+    const hits = current?.windowStart === windowStart ? current.hits + 1 : 1;
+    this.rateLimits.set(key, { windowStart, hits });
+    return {
+      allowed: hits <= limit,
+      remaining: Math.max(0, limit - hits),
+      resetAt: windowStart + windowMs
+    };
+  }
 }
 
 class PostgresStore implements Store {
@@ -170,6 +194,19 @@ class PostgresStore implements Store {
       CREATE INDEX IF NOT EXISTS b20_metadata_stages_expiry_idx
       ON b20_metadata_stages (expires_at)
       WHERE status <> 'committed'
+    `;
+    await this.sql`
+      CREATE TABLE IF NOT EXISTS b20_rate_limits (
+        scope_key TEXT NOT NULL,
+        window_start BIGINT NOT NULL,
+        hits INTEGER NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        PRIMARY KEY (scope_key, window_start)
+      )
+    `;
+    await this.sql`
+      CREATE INDEX IF NOT EXISTS b20_rate_limits_expiry_idx
+      ON b20_rate_limits (expires_at)
     `;
   }
 
@@ -274,7 +311,29 @@ class PostgresStore implements Store {
       WHERE status <> 'committed' AND expires_at <= NOW()
       RETURNING stage_id
     `;
+    await this.sql`
+      DELETE FROM b20_rate_limits WHERE expires_at <= NOW()
+    `;
     return rows.length;
+  }
+
+  async consumeRateLimit(key: string, limit: number, windowMs: number) {
+    const now = Date.now();
+    const windowStart = Math.floor(now / windowMs) * windowMs;
+    const expiresAt = new Date(windowStart + windowMs);
+    const [row] = await this.sql`
+      INSERT INTO b20_rate_limits (scope_key, window_start, hits, expires_at)
+      VALUES (${key}, ${windowStart}, 1, ${expiresAt})
+      ON CONFLICT (scope_key, window_start)
+      DO UPDATE SET hits = b20_rate_limits.hits + 1
+      RETURNING hits
+    `;
+    const hits = Number(row?.hits ?? limit + 1);
+    return {
+      allowed: hits <= limit,
+      remaining: Math.max(0, limit - hits),
+      resetAt: windowStart + windowMs
+    };
   }
 }
 
@@ -285,3 +344,20 @@ if (config.NODE_ENV === "production" && !config.DATABASE_URL) {
 export const store: Store = config.NODE_ENV !== "test" && config.DATABASE_URL
   ? new PostgresStore(config.DATABASE_URL)
   : new MemoryStore();
+
+let storeInitialization: Promise<void> | undefined;
+let lastCleanupAt = 0;
+
+export async function ensureStoreReady() {
+  storeInitialization ??= store.initialize().catch((error) => {
+    storeInitialization = undefined;
+    throw error;
+  });
+  await storeInitialization;
+
+  const now = Date.now();
+  if (now - lastCleanupAt >= 5 * 60 * 1000) {
+    lastCleanupAt = now;
+    await store.cleanupMetadataStages();
+  }
+}

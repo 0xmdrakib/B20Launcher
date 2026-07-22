@@ -3,7 +3,7 @@ import { Router } from "express";
 import { asyncHandler } from "../lib/http.js";
 import { buildLaunchPackage } from "../services/b20.js";
 
-export const x402Router = Router();
+export const x402Router: Router = Router();
 
 x402Router.post(
   "/b20/build",

@@ -218,3 +218,23 @@ test("an EIP-6963 wallet can connect and disconnect from the header control", as
   await disconnect.click();
   await expect(page.getByRole("button", { name: "Connect Wallet" })).toBeVisible();
 });
+
+test("same-origin server routes expose health, manifest, validation, and x402 mode", async ({ request }) => {
+  const health = await request.get("/health");
+  expect(health.ok()).toBe(true);
+  expect((await health.json()).chainId).toBe(8453);
+
+  const manifest = await request.get("/api/agents/manifest");
+  expect(manifest.ok()).toBe(true);
+  expect((await manifest.json()).capabilities[1].path).toBe("/x402/b20/build");
+
+  const missingLogo = await request.post("/api/metadata/prepare", {
+    multipart: { name: "Route test", symbol: "ROUTE", variant: "asset" }
+  });
+  expect(missingLogo.status()).toBe(400);
+  expect((await missingLogo.json()).error).toBe("A token logo is required.");
+
+  const x402 = await request.post("/x402/b20/build", { data: {} });
+  expect(x402.status()).toBe(400);
+  expect(x402.headers()["x-b20-x402-mode"]).toBe("disabled-local-development");
+});

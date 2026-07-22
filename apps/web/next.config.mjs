@@ -10,6 +10,8 @@ loadEnv({ path: path.join(workspaceRoot, ".env"), override: false, quiet: true }
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  transpilePackages: ["@base-b20/api"],
+  serverExternalPackages: ["@lighthouse-web3/sdk", "postgres", "sharp"],
   experimental: {
     optimizePackageImports: ["lucide-react"]
   },

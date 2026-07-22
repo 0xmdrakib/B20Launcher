@@ -1,6 +1,6 @@
 import type { LaunchDraftInput, UnsignedLaunchTransaction } from "@base-b20/b20";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4020";
+const API_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "";
 
 export type PreparedMetadataResponse = {
   stageId: string;

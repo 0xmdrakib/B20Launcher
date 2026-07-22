@@ -11,7 +11,7 @@ import { metadataRouter } from "./routes/metadata.js";
 import { x402Router } from "./routes/x402.js";
 import { errorHandler } from "./lib/http.js";
 import { createX402Middleware } from "./lib/x402.js";
-import { store } from "./services/store.js";
+import { ensureStoreReady, store } from "./services/store.js";
 
 const app = express();
 
@@ -53,8 +53,7 @@ app.use("/x402", ...createX402Middleware(config), x402Router);
 app.use(errorHandler);
 
 async function start() {
-  await store.initialize();
-  await store.cleanupMetadataStages();
+  await ensureStoreReady();
 
   const cleanupTimer = setInterval(() => {
     void store.cleanupMetadataStages().catch((error) => {
