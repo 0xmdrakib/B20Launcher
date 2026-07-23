@@ -13,6 +13,9 @@ export const metadata: Metadata = {
     icon: "/brand/b20-app-icon.png",
     shortcut: "/brand/b20-app-icon.png",
     apple: "/brand/b20-app-icon.png"
+  },
+  other: {
+    "base:app_id": "693add74e6be54f5ed71d645"
   }
 };
 
