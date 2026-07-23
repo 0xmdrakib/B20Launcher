@@ -42,7 +42,7 @@ const rawConfigSchema = z.object({
   X402_FACILITATOR_URL: z
     .string()
     .optional()
-    .default("")
+    .default("https://facilitator.payai.network")
 });
 
 const normalizedEnv = Object.fromEntries(
@@ -72,7 +72,4 @@ if (config.X402_ENABLED && config.X402_PAY_TO === ZERO_ADDRESS) {
 
 if (config.X402_ENABLED && !config.X402_PRICE) {
   throw new Error("X402_PRICE is required when X402_ENABLED=true");
-}
-if (config.X402_ENABLED && !config.X402_FACILITATOR_URL) {
-  throw new Error("X402_FACILITATOR_URL is required when X402_ENABLED=true");
 }
