@@ -1,5 +1,4 @@
 import type { RequestHandler } from "express";
-import { createCdpFacilitatorClient } from "@coinbase/cdp-sdk/x402";
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import { paymentMiddleware, x402ResourceServer } from "@x402/express";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
@@ -19,11 +18,7 @@ export function createX402Middleware(config: AppConfig): RequestHandler[] {
     ];
   }
 
-  const facilitatorClient = config.X402_FACILITATOR_URL.startsWith(
-    "https://api.cdp.coinbase.com/"
-  )
-    ? createCdpFacilitatorClient()
-    : new HTTPFacilitatorClient({ url: config.X402_FACILITATOR_URL });
+  const facilitatorClient = new HTTPFacilitatorClient({ url: config.X402_FACILITATOR_URL });
   const network = config.X402_NETWORK as `${string}:${string}`;
   const server = new x402ResourceServer(facilitatorClient).register(
     network,

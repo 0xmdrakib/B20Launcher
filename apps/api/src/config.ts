@@ -30,12 +30,6 @@ const rawConfigSchema = z.object({
     .url()
     .optional()
     .default("https://gateway.lighthouse.storage/ipfs"),
-  CDP_SQL_API_KEY: z.string().optional().default(""),
-  CDP_SQL_API_URL: z
-    .string()
-    .url()
-    .optional()
-    .default("https://api.cdp.coinbase.com/platform/v2/data/query"),
   DATABASE_URL: z.string().optional().default(""),
   X402_ENABLED: z
     .string()
@@ -47,11 +41,8 @@ const rawConfigSchema = z.object({
   X402_NETWORK: z.string().optional().default("eip155:8453"),
   X402_FACILITATOR_URL: z
     .string()
-    .url()
     .optional()
-    .default("https://api.cdp.coinbase.com/platform/v2/x402"),
-  CDP_API_KEY_ID: z.string().optional().default(""),
-  CDP_API_KEY_SECRET: z.string().optional().default("")
+    .default("")
 });
 
 const normalizedEnv = Object.fromEntries(
@@ -82,15 +73,6 @@ if (config.X402_ENABLED && config.X402_PAY_TO === ZERO_ADDRESS) {
 if (config.X402_ENABLED && !config.X402_PRICE) {
   throw new Error("X402_PRICE is required when X402_ENABLED=true");
 }
-
-const usesCdpFacilitator = config.X402_FACILITATOR_URL.startsWith(
-  "https://api.cdp.coinbase.com/"
-);
-
-if (
-  config.X402_ENABLED &&
-  usesCdpFacilitator &&
-  (!config.CDP_API_KEY_ID || !config.CDP_API_KEY_SECRET)
-) {
-  throw new Error("CDP_API_KEY_ID and CDP_API_KEY_SECRET are required when X402_ENABLED=true");
+if (config.X402_ENABLED && !config.X402_FACILITATOR_URL) {
+  throw new Error("X402_FACILITATOR_URL is required when X402_ENABLED=true");
 }

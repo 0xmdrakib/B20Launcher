@@ -109,7 +109,7 @@ export async function getB20Status(address: Address) {
       transfers24h: null,
       holders: null,
       policyEvents: null,
-      source: config.CDP_SQL_API_KEY ? "cdp-sql-api" : "not-configured"
+      source: "rpc"
     }
   };
 }

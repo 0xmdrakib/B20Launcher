@@ -30,7 +30,7 @@ export const wagmiConfig = createConfig({
   connectors,
   multiInjectedProviderDiscovery: true,
   transports: {
-    [base.id]: http(process.env.NEXT_PUBLIC_BASE_RPC_URL || "https://mainnet.base.org"),
+    [base.id]: http("https://mainnet.base.org"),
     [baseSepolia.id]: http("https://sepolia.base.org")
   }
 });

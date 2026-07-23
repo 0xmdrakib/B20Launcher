@@ -3,7 +3,6 @@ import { getAddress, isAddress } from "viem";
 
 import { ApiError, asyncHandler } from "../lib/http.js";
 import { buildLaunchPackage, getB20Status, quoteLaunch } from "../services/b20.js";
-import { queryRecentB20Creations } from "../services/sql.js";
 
 export const b20Router: Router = Router();
 
@@ -32,7 +31,7 @@ b20Router.post(
 b20Router.get(
   "/recent",
   asyncHandler(async (_req, res) => {
-    res.json(await queryRecentB20Creations(25));
+    res.json({ source: "rpc", rows: [] });
   })
 );
 

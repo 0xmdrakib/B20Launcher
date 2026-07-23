@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "@base-b20/b20": "workspace:*",
-    "@coinbase/cdp-sdk": "^1.54.0",
     "@lighthouse-web3/sdk": "^0.4.7",
     "@x402/core": "^2.19.0",
     "@x402/evm": "^2.19.0",

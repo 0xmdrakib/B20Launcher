@@ -1,13 +1,10 @@
-import { createCdpFacilitatorClient } from "@coinbase/cdp-sdk/x402";
 import { HTTPFacilitatorClient, x402ResourceServer } from "@x402/core/server";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
 import { BUILDER_CODE, declareBuilderCodeExtension } from "@x402/extensions/builder-code";
 import { config } from "@base-b20/api/core";
 
 export function createB20X402Server() {
-  const facilitator = config.X402_FACILITATOR_URL.startsWith("https://api.cdp.coinbase.com/")
-    ? createCdpFacilitatorClient()
-    : new HTTPFacilitatorClient({ url: config.X402_FACILITATOR_URL });
+  const facilitator = new HTTPFacilitatorClient({ url: config.X402_FACILITATOR_URL });
   return new x402ResourceServer(facilitator).register(
     config.X402_NETWORK as `${string}:${string}`,
     new ExactEvmScheme()

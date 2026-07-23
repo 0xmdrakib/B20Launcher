@@ -3,7 +3,7 @@
 ## Runtime Surfaces
 
 - `apps/web`: Next.js issuer console for metadata, role setup, launch preview, wallet signing, and operations visibility.
-- `apps/api`: Framework-neutral server core plus an Express compatibility adapter for IPFS metadata preparation, launch quote/build, status, and CDP SQL hooks.
+- `apps/api`: Framework-neutral server core plus an Express compatibility adapter for IPFS metadata preparation, launch quote/build, status, and generic x402 facilitator integration.
 - `apps/web/app/api` and `apps/web/app/x402`: Primary same-origin Next.js Route Handlers used by the Vercel deployment, including x402 payment protection.
 - `packages/b20`: Shared source of truth for schemas, ABI, B20 address derivation, Builder Code suffixing, and unsigned transaction packages.
 - `packages/contracts`: `B20LaunchRouter`, a fee-free route into Base's native `B20Factory`.

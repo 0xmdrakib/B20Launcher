@@ -7,6 +7,5 @@ export {
   prepareMetadata,
   type UploadedLogo
 } from "./services/ipfs.js";
-export { queryRecentB20Creations } from "./services/sql.js";
 export { getAgentManifest } from "./services/manifest.js";
 export { ensureStoreReady, store, type RateLimitResult } from "./services/store.js";
