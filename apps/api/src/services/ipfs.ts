@@ -1,6 +1,5 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 
-import lighthouse from "@lighthouse-web3/sdk";
 import Hash from "ipfs-only-hash";
 import sharp from "sharp";
 import { createPublicClient, getAddress, http, isHash, type Address, type Hex } from "viem";
@@ -10,6 +9,7 @@ import { buildContractMetadata, type ContractMetadata } from "@base-b20/b20";
 
 import { config } from "../config.js";
 import { ApiError } from "../lib/errors.js";
+import { uploadToLighthouse } from "./lighthouse.js";
 import { store, type MetadataStageRecord } from "./store.js";
 
 const metadataPrepareSchema = z.object({
@@ -64,10 +64,6 @@ export type PreparedMetadata = {
   };
 };
 
-type LighthouseUploadResponse = {
-  data?: { Hash?: string; Size?: string | number };
-};
-
 export const MAX_LOGO_BYTES = 1_000_000;
 const STAGE_TTL_MS = 30 * 60 * 1000;
 const publicClient = createPublicClient({ transport: http(config.BASE_RPC_URL) });
@@ -111,26 +107,20 @@ function stagedIpfsObject(cid: string, body: Buffer | string, mimeType: string):
 }
 
 function committedIpfsObject(
-  expected: IpfsObject,
-  reportedSize?: string | number | undefined
+  expected: IpfsObject
 ): IpfsObject {
-  const parsedSize = Number(reportedSize ?? expected.size);
   return {
     ...expected,
-    size: Number.isFinite(parsedSize) ? parsedSize : expected.size,
     provider: "lighthouse"
   };
 }
 
 async function uploadBuffer(buffer: Buffer, expected: IpfsObject): Promise<IpfsObject> {
   try {
-    const response = (await lighthouse.uploadBuffer(buffer, requireApiKey(), {
-      cidVersion: 1
-    })) as LighthouseUploadResponse;
-    const cid = response.data?.Hash;
-    if (!cid) throw new ApiError("Lighthouse did not return a CID for the token logo.", 502);
+    const response = await uploadToLighthouse(buffer, "b20-token-logo.png", requireApiKey());
+    const cid = response.Hash;
     if (cid !== expected.cid) throw new ApiError("Lighthouse logo CID did not match the staged CID.", 502);
-    return committedIpfsObject(expected, response.data?.Size);
+    return committedIpfsObject(expected);
   } catch (error) {
     if (error instanceof ApiError) throw error;
     throw new ApiError("Lighthouse could not store the token logo. Please retry.", 502);
@@ -139,13 +129,10 @@ async function uploadBuffer(buffer: Buffer, expected: IpfsObject): Promise<IpfsO
 
 async function uploadJson(body: string, expected: IpfsObject): Promise<IpfsObject> {
   try {
-    const response = (await lighthouse.uploadText(body, requireApiKey(), "b20-contract-metadata.json", {
-      cidVersion: 1
-    })) as LighthouseUploadResponse;
-    const cid = response.data?.Hash;
-    if (!cid) throw new ApiError("Lighthouse did not return a CID for contract metadata.", 502);
+    const response = await uploadToLighthouse(body, "b20-contract-metadata.json", requireApiKey());
+    const cid = response.Hash;
     if (cid !== expected.cid) throw new ApiError("Lighthouse metadata CID did not match the staged CID.", 502);
-    return committedIpfsObject(expected, response.data?.Size);
+    return committedIpfsObject(expected);
   } catch (error) {
     if (error instanceof ApiError) throw error;
     throw new ApiError("Lighthouse could not store contract metadata. Please retry.", 502);
