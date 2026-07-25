@@ -215,7 +215,7 @@ export function LaunchConsole() {
     supplyCapUnits && supplyCapUnits > 0n && mintAmountUnits !== null && mintAmountUnits <= supplyCapUnits
   );
   const completedSteps = [metadataReady, step > 1 || Boolean(quote), step > 2 || Boolean(quote), Boolean(hash)];
-  const previewImage = prepared?.logo?.gatewayUrls[0] || logoPreview;
+  const previewImage = logoPreview || prepared?.logo?.gatewayUrls[0];
 
   const fieldErrors = useMemo<Partial<Record<FieldKey, string>>>(() => {
     const errors: Partial<Record<FieldKey, string>> = {};

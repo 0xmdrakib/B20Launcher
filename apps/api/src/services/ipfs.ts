@@ -139,31 +139,6 @@ async function uploadJson(body: string, expected: IpfsObject): Promise<IpfsObjec
   }
 }
 
-async function checkGateway(url: string): Promise<GatewayHealth> {
-  const started = Date.now();
-  try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: { Range: "bytes=0-0" },
-      signal: AbortSignal.timeout(5000)
-    });
-    return { url, ok: response.ok, status: response.status, ms: Date.now() - started };
-  } catch {
-    return { url, ok: false, ms: Date.now() - started };
-  }
-}
-
-async function verifyGateways(objects: IpfsObject[]): Promise<GatewayHealth[]> {
-  let health: GatewayHealth[] = [];
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    health = await Promise.all(objects.flatMap((object) => object.gatewayUrls).map(checkGateway));
-    const lighthouseChecks = objects.map((object) => health.find((item) => item.url === object.gatewayUrls[0]));
-    if (lighthouseChecks.every((item) => item?.ok)) return health;
-    if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 750 * (attempt + 1)));
-  }
-  return health;
-}
-
 export type UploadedLogo = {
   originalname: string;
   mimetype: string;
@@ -361,19 +336,12 @@ export async function commitMetadata(input: MetadataCommitInput): Promise<Prepar
 
   const logo = await uploadBuffer(stage.logoBody, stage.prepared.logo);
   const contract = await uploadJson(stage.contractBody, stage.prepared.contract);
-  const gatewayHealth = await verifyGateways([logo, contract]);
-  const verified = [logo.gatewayUrls[0], contract.gatewayUrls[0]].every(
-    (url) => gatewayHealth.find((item) => item.url === url)?.ok === true
-  );
-  if (!verified) {
-    throw new ApiError("Metadata is stored, but Lighthouse gateway verification is pending. Retry shortly.", 503);
-  }
 
   const committed: PreparedMetadata = {
     ...stage.prepared,
     logo,
     contract,
-    gatewayHealth,
+    gatewayHealth: [],
     storage: {
       provider: "Lighthouse",
       network: "IPFS + Filecoin",
