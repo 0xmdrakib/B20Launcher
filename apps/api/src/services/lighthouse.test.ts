@@ -37,19 +37,22 @@ describe("Lighthouse upload adapter", () => {
   });
 
   it("blocks launch preparation when the storage trial has expired", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ dataLimit: 5 * 1024 ** 3, dataLimitPermanent: 0 }), {
+          status: 200
+        })
+      )
+      .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
-            success: false,
-            error: "Trial expired",
-            details: "Your trial period has expired. Please upgrade to a paid plan"
+            fileList: [{ createdAt: Date.now() - 15 * 24 * 60 * 60 * 1000 }]
           }),
-          { status: 403, headers: { "content-type": "application/json" } }
+          { status: 200 }
         )
-      )
-    );
+      );
+    vi.stubGlobal("fetch", fetchMock);
 
     await expect(assertLighthouseUploadAvailable("secret")).rejects.toMatchObject({
       status: 503,
@@ -58,18 +61,38 @@ describe("Lighthouse upload adapter", () => {
     });
   });
 
-  it("uses an empty multipart request without uploading a file", async () => {
+  it("allows an active free trial without uploading a canary file", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ dataLimit: 5 * 1024 ** 3, dataLimitPermanent: 0 }), {
+          status: 200
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            fileList: [{ createdAt: Date.now() - 2 * 24 * 60 * 60 * 1000 }]
+          }),
+          { status: 200 }
+        )
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(assertLighthouseUploadAvailable("secret")).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls.every(([, request]) => request?.method === undefined)).toBe(true);
+  });
+
+  it("allows a paid storage quota without inspecting upload history", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ error: "A file is required" }), {
-        status: 400,
-        headers: { "content-type": "application/json" }
+      new Response(JSON.stringify({ dataLimit: 500 * 1024 ** 3, dataLimitPermanent: 0 }), {
+        status: 200
       })
     );
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(assertLighthouseUploadAvailable("secret")).resolves.toBeUndefined();
-    const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(request.body).toBeInstanceOf(FormData);
-    expect(Array.from((request.body as FormData).keys())).toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -4,6 +4,11 @@ import { ApiError } from "../lib/errors.js";
 
 const LIGHTHOUSE_UPLOAD_URL =
   "https://upload.lighthouse.storage/api/v0/add?cid-version=1&raw-leaves=false&wrap-with-directory=false";
+const LIGHTHOUSE_USAGE_URL = "https://api.lighthouse.storage/api/user/user_data_usage";
+const LIGHTHOUSE_UPLOADS_URL =
+  "https://api.lighthouse.storage/api/user/files_uploaded?fileType=annual";
+const FREE_TRIAL_BYTES = 5 * 1024 * 1024 * 1024;
+const FREE_TRIAL_MS = 14 * 24 * 60 * 60 * 1000;
 
 const uploadResponseSchema = z.object({
   Hash: z.string().min(1),
@@ -12,18 +17,21 @@ const uploadResponseSchema = z.object({
 
 export type LighthouseUploadResult = z.infer<typeof uploadResponseSchema>;
 
-const uploadErrorSchema = z.object({
-  error: z.string().optional(),
-  details: z.string().optional()
+const usageResponseSchema = z.object({
+  dataLimit: z.number(),
+  dataLimitPermanent: z.number().default(0)
+});
+
+const uploadsResponseSchema = z.object({
+  fileList: z.array(z.object({ createdAt: z.number() })).default([])
 });
 
 export async function assertLighthouseUploadAvailable(apiKey: string): Promise<void> {
-  let response: Response;
+  const headers = { Authorization: `Bearer ${apiKey}` };
+  let usageResponse: Response;
   try {
-    response = await fetch(LIGHTHOUSE_UPLOAD_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}` },
-      body: new FormData(),
+    usageResponse = await fetch(LIGHTHOUSE_USAGE_URL, {
+      headers,
       signal: AbortSignal.timeout(15_000)
     });
   } catch {
@@ -32,31 +40,69 @@ export async function assertLighthouseUploadAvailable(apiKey: string): Promise<v
       503
     );
   }
-
-  const payload: unknown = await response.json().catch(() => undefined);
-  const parsed = uploadErrorSchema.safeParse(payload);
-  const providerMessage = parsed.success
-    ? [parsed.data.error, parsed.data.details].filter(Boolean).join(": ")
-    : "";
-
-  if (response.status === 401) {
+  if (usageResponse.status === 401) {
     throw new ApiError(
       "Token launches are temporarily unavailable because the storage credential is invalid. No transaction was created.",
       503
     );
   }
-  if (response.status === 403) {
-    const expired = /trial|expired|upgrade|paid plan/i.test(providerMessage);
+  if (!usageResponse.ok) {
     throw new ApiError(
-      expired
-        ? "Token launches are temporarily unavailable because the Lighthouse storage plan has expired. No transaction was created."
-        : "Token launches are temporarily unavailable because Lighthouse denied storage access. No transaction was created.",
+      "Token launches are temporarily unavailable because storage could not be verified. No transaction was created.",
       503
     );
   }
-  if (response.status === 429 || response.status >= 500) {
+
+  const usage = usageResponseSchema.safeParse(await usageResponse.json().catch(() => undefined));
+  if (!usage.success) {
     throw new ApiError(
       "Token launches are temporarily unavailable because storage could not be verified. No transaction was created.",
+      503
+    );
+  }
+  if (
+    usage.data.dataLimit > FREE_TRIAL_BYTES ||
+    usage.data.dataLimitPermanent > 0
+  ) {
+    return;
+  }
+
+  let uploadsResponse: Response;
+  try {
+    uploadsResponse = await fetch(LIGHTHOUSE_UPLOADS_URL, {
+      headers,
+      signal: AbortSignal.timeout(15_000)
+    });
+  } catch {
+    throw new ApiError(
+      "Token launches are temporarily unavailable because storage could not be verified. No transaction was created.",
+      503
+    );
+  }
+  if (!uploadsResponse.ok) {
+    throw new ApiError(
+      "Token launches are temporarily unavailable because storage could not be verified. No transaction was created.",
+      503
+    );
+  }
+
+  const uploads = uploadsResponseSchema.safeParse(
+    await uploadsResponse.json().catch(() => undefined)
+  );
+  if (!uploads.success) {
+    throw new ApiError(
+      "Token launches are temporarily unavailable because storage could not be verified. No transaction was created.",
+      503
+    );
+  }
+
+  const firstUploadAt = uploads.data.fileList.reduce(
+    (oldest, file) => Math.min(oldest, file.createdAt),
+    Number.POSITIVE_INFINITY
+  );
+  if (Number.isFinite(firstUploadAt) && Date.now() - firstUploadAt >= FREE_TRIAL_MS) {
+    throw new ApiError(
+      "Token launches are temporarily unavailable because the Lighthouse storage plan has expired. No transaction was created.",
       503
     );
   }
