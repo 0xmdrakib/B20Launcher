@@ -1,4 +1,11 @@
-import { ApiError, MAX_LOGO_BYTES, prepareMetadata, type UploadedLogo } from "@base-b20/api/core";
+import {
+  ApiError,
+  assertLighthouseUploadAvailable,
+  config,
+  MAX_LOGO_BYTES,
+  prepareMetadata,
+  type UploadedLogo
+} from "@base-b20/api/core";
 import { NextRequest } from "next/server";
 
 import { apiRoute } from "../../../../src/server/api-route";
@@ -18,6 +25,7 @@ export async function POST(request: NextRequest) {
       size: logo.size,
       buffer: Buffer.from(await logo.arrayBuffer())
     };
+    await assertLighthouseUploadAvailable(config.LIGHTHOUSE_API_KEY);
     return prepareMetadata({
       name: String(form.get("name") ?? ""),
       symbol: String(form.get("symbol") ?? ""),
