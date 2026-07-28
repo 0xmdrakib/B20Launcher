@@ -7,6 +7,8 @@ import { z } from "zod";
 
 import { BASE_MAINNET_CHAIN_ID, ZERO_ADDRESS } from "@base-b20/b20";
 
+import { normalizeLighthouseGatewayUrl } from "./lib/lighthouse-gateway.js";
+
 const cwd = process.cwd();
 const workspaceRoot =
   path.basename(cwd) === "api" && path.basename(path.dirname(cwd)) === "apps"
@@ -59,6 +61,7 @@ function optionalAddress(value: string, key: string): Address {
 
 export const config = {
   ...parsed,
+  LIGHTHOUSE_GATEWAY_URL: normalizeLighthouseGatewayUrl(parsed.LIGHTHOUSE_GATEWAY_URL),
   B20_LAUNCH_ROUTER_ADDRESS: optionalAddress(
     parsed.B20_LAUNCH_ROUTER_ADDRESS,
     "B20_LAUNCH_ROUTER_ADDRESS"
