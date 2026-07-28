@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { uploadToLighthouse } from "./lighthouse.js";
+import { assertLighthouseUploadAvailable, uploadToLighthouse } from "./lighthouse.js";
 
 describe("Lighthouse upload adapter", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -34,5 +34,42 @@ describe("Lighthouse upload adapter", () => {
       status: 502,
       message: "Lighthouse returned an invalid upload response."
     });
+  });
+
+  it("blocks launch preparation when the storage trial has expired", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            success: false,
+            error: "Trial expired",
+            details: "Your trial period has expired. Please upgrade to a paid plan"
+          }),
+          { status: 403, headers: { "content-type": "application/json" } }
+        )
+      )
+    );
+
+    await expect(assertLighthouseUploadAvailable("secret")).rejects.toMatchObject({
+      status: 503,
+      message:
+        "Token launches are temporarily unavailable because the Lighthouse storage plan has expired. No transaction was created."
+    });
+  });
+
+  it("uses an empty multipart request without uploading a file", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: "A file is required" }), {
+        status: 400,
+        headers: { "content-type": "application/json" }
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(assertLighthouseUploadAvailable("secret")).resolves.toBeUndefined();
+    const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(request.body).toBeInstanceOf(FormData);
+    expect(Array.from((request.body as FormData).keys())).toEqual([]);
   });
 });

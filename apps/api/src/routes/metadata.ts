@@ -2,7 +2,9 @@ import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import multer from "multer";
 
+import { config } from "../config.js";
 import { asyncHandler } from "../lib/http.js";
+import { assertLighthouseUploadAvailable } from "../services/lighthouse.js";
 import { commitMetadata, MAX_LOGO_BYTES, prepareMetadata } from "../services/ipfs.js";
 
 const upload = multer({
@@ -30,6 +32,7 @@ metadataRouter.post(
   stageLimiter,
   upload.single("logo"),
   asyncHandler(async (req, res) => {
+    await assertLighthouseUploadAvailable(config.LIGHTHOUSE_API_KEY);
     const prepared = await prepareMetadata(req.body, req.file);
     res.setHeader("Cache-Control", "no-store");
     res.json(prepared);
