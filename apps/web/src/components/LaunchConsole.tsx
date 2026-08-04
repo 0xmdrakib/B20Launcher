@@ -4,20 +4,17 @@ import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
-  Check,
   CheckCircle2,
   Clipboard,
   Copy,
   Eye,
   ExternalLink,
   FileImage,
-  Globe2,
   KeyRound,
   Layers3,
   Network,
   Rocket,
   RotateCcw,
-  ShieldCheck,
   UploadCloud,
   Zap
 } from "lucide-react";
@@ -138,7 +135,6 @@ export function LaunchConsole() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [draftReady, setDraftReady] = useState(false);
-  const [draftSaved, setDraftSaved] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [touched, setTouched] = useState<Partial<Record<FieldKey, boolean>>>({});
   const [mintAmountManuallyEdited, setMintAmountManuallyEdited] = useState(false);
@@ -185,10 +181,8 @@ export function LaunchConsole() {
 
   useEffect(() => {
     if (!draftReady) return;
-    setDraftSaved(false);
     const timer = window.setTimeout(() => {
       window.localStorage.setItem(DRAFT_KEY, JSON.stringify(form));
-      setDraftSaved(true);
     }, 350);
     return () => window.clearTimeout(timer);
   }, [draftReady, form]);
@@ -546,13 +540,28 @@ export function LaunchConsole() {
   };
 
   return (
-    <main className="app-shell" data-ready={draftReady ? "true" : "false"}>
-      <AppHeader apiUrl={API_URL} walletControl={<WalletControl />} />
+    <main className="app-shell" id="top" data-ready={draftReady ? "true" : "false"}>
+      <AppHeader
+        apiUrl={API_URL}
+        walletControl={
+          <>
+            <button className="icon-button" onClick={requestResetDraft} title="Start a new launch" aria-label="Start a new launch and clear the current draft"><RotateCcw size={17} /></button>
+            <WalletControl />
+          </>
+        }
+      />
 
-      <div className="context-bar" id="top">
-        <div><span>New issuance</span><strong>{form.name || "Untitled token"}</strong><em className={draftSaved ? "saved" : "saving"}><Check size={11} />{draftSaved ? "Saved locally" : "Saving"}</em><button className="draft-reset" onClick={requestResetDraft} title="Start a new launch" aria-label="Start a new launch and clear the current draft"><RotateCcw size={13} /><span>New draft</span></button></div>
-        <div className="context-trust"><ShieldCheck size={15} /> Non-custodial <span /> <Zap size={15} /> One transaction <span /> <Globe2 size={15} /> Lighthouse IPFS</div>
-      </div>
+      <section className="launch-guide" aria-label="What B20 Launcher is for">
+        <div className="launch-guide-copy">
+          <span className="eyebrow">What this is</span>
+          <p><strong>For anyone creating a token on Base.</strong> Launch a B20 asset or stablecoin, configure its identity, supply, and controls, then sign one transaction from your own wallet. B20 is Base&apos;s native token standard; the platform never holds your keys or tokens.</p>
+        </div>
+        <div className="launch-guide-flow" aria-label="Launch steps">
+          <div className="guide-step"><span>1</span><div><strong>Define</strong><small>Identity and supply</small></div></div>
+          <div className="guide-step"><span>2</span><div><strong>Review</strong><small>Roles and calldata</small></div></div>
+          <div className="guide-step"><span>3</span><div><strong>Sign</strong><small>One Base transaction</small></div></div>
+        </div>
+      </section>
 
       <div className="launch-layout">
         <ProgressNav steps={steps} current={step} completed={completedSteps} onSelect={setStep} />

@@ -88,16 +88,18 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .button.launch { border-color: var(--accent); background: var(--accent); }
 .button.launch:hover:not(:disabled) { border-color: var(--accent-active); background: var(--accent-active); }
 
-.context-bar { display: flex; align-items: center; justify-content: space-between; min-height: 56px; padding: 8px 28px; border-bottom: 1px solid var(--line); background: var(--surface); }
-.context-bar > div:first-child { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.context-bar span { color: var(--muted); font-size: 11px; }
-.context-bar strong { min-width: 0; overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.context-bar em { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; flex: none; border-radius: 999px; padding: 0 9px; background: var(--surface-soft); color: var(--muted); font-size: 9px; font-style: normal; font-weight: 700; }
-.context-bar em.saved { background: var(--mint-soft); color: var(--mint); }
-.draft-reset { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 30px; flex: none; border: 1px solid var(--line); border-radius: 6px; padding: 0 9px; background: var(--surface); color: var(--muted); font-size: 9px; font-weight: 700; }
-.draft-reset:hover { border-color: var(--ink); color: var(--ink); }
-.context-trust { display: flex; align-items: center; gap: 7px; flex: none; color: var(--body); font-size: 11px; }
-.context-trust > span { width: 1px; height: 16px; margin: 0 5px; background: var(--line); }
+.launch-guide { display: grid; grid-template-columns: minmax(0,1.25fr) minmax(390px,1fr); align-items: center; gap: 42px; padding: 21px max(28px,calc((100vw - 1420px)/2)); border-bottom: 1px solid var(--line); background: var(--surface); }
+.launch-guide-copy { min-width: 0; max-width: 720px; }
+.launch-guide-copy .eyebrow { margin-bottom: 5px; }
+.launch-guide-copy p { margin: 0; color: var(--body); font-size: 11px; line-height: 1.55; }
+.launch-guide-copy strong { color: var(--ink); font-size: 14px; font-weight: 750; }
+.launch-guide-flow { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); min-width: 0; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); box-shadow: var(--shadow-sm); }
+.guide-step { display: grid; grid-template-columns: 24px minmax(0,1fr); align-items: center; gap: 8px; min-width: 0; padding: 11px 12px; border-left: 1px solid var(--line); }
+.guide-step:first-child { border-left: 0; }
+.guide-step > span { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: 9px; font-weight: 800; }
+.guide-step div { display: grid; gap: 2px; min-width: 0; }
+.guide-step strong { font-size: 10px; }
+.guide-step small { overflow: hidden; color: var(--muted); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
 
 .launch-layout { display: grid; grid-template-columns: 240px minmax(0,1fr) minmax(326px,360px); width: 100%; min-height: calc(100vh - 128px); }
 .step-rail { display: flex; flex-direction: column; min-width: 0; padding: 32px 20px 24px 28px; border-right: 1px solid var(--line); }
@@ -308,8 +310,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 
 @media (max-width: 959px) {
   .topbar { grid-template-columns: 1fr auto; height: 64px; padding: 0 18px; }
-  .context-bar { min-height: 52px; padding: 8px 18px; }
-  .context-trust { display: none; }
+  .launch-guide { grid-template-columns: 1fr; gap: 15px; padding: 18px; }
+  .launch-guide-flow { max-width: 620px; }
   .launch-layout { display: block; }
   .step-rail { padding: 12px 18px 14px; border-right: 0; border-bottom: 1px solid var(--line); background: var(--canvas); }
   .rail-heading, .rail-progress, .rail-note { display: none; }
@@ -330,7 +332,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .brand-primary { display: none; }
   .brand-compact { display: block; width: 68px; height: 28px; }
   .nav-actions { gap: 5px; }
-  .nav-actions .icon-button { display: none; }
+  .nav-actions > a.icon-button { display: none; }
   .nav-actions .button { min-height: 42px; padding: 0 11px; font-size: 11px; }
   .wallet-pill { min-height: 42px; padding-left: 10px; font-size: 11px; }
   .wallet-pill.disconnected { padding-right: 12px; }
@@ -343,10 +345,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .wallet-options { padding: 0 12px 14px; }
   .wallet-option { min-height: 64px; }
   .walletconnect-section { padding: 14px 12px; }
-  .context-bar { min-height: 48px; padding: 7px 12px; }
-  .context-bar > div:first-child { width: 100%; gap: 7px; }
-  .context-bar > div:first-child > span, .context-bar em { display: none; }
-  .context-bar strong { flex: 1; font-size: 12px; }
+  .launch-guide { gap: 13px; padding: 16px 12px; }
+  .launch-guide-copy p { font-size: 10px; }
+  .launch-guide-copy strong { display: block; margin-bottom: 2px; font-size: 13px; }
+  .launch-guide-flow { width: 100%; }
+  .guide-step { grid-template-columns: 21px minmax(0,1fr); gap: 6px; padding: 9px 8px; }
+  .guide-step > span { width: 20px; height: 20px; }
+  .guide-step strong { font-size: 9px; }
+  .guide-step small { font-size: 7px; }
   .step-rail { padding: 10px 10px 12px; }
   .steps { gap: 3px; }
   .step { min-height: 54px; }
