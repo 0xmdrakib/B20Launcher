@@ -1,10 +1,10 @@
 import type { RequestHandler } from "express";
-import { HTTPFacilitatorClient } from "@x402/core/server";
 import { paymentMiddleware, x402ResourceServer } from "@x402/express";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
 import { BUILDER_CODE, declareBuilderCodeExtension } from "@x402/extensions/builder-code";
 
 import type { config as appConfig } from "../config.js";
+import { createB20CdpFacilitatorClient } from "./x402-facilitator.js";
 
 type AppConfig = typeof appConfig;
 
@@ -18,7 +18,7 @@ export function createX402Middleware(config: AppConfig): RequestHandler[] {
     ];
   }
 
-  const facilitatorClient = new HTTPFacilitatorClient({ url: config.X402_FACILITATOR_URL });
+  const facilitatorClient = createB20CdpFacilitatorClient();
   const network = config.X402_NETWORK as `${string}:${string}`;
   const server = new x402ResourceServer(facilitatorClient).register(
     network,

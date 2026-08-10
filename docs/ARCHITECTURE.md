@@ -60,6 +60,6 @@ The agent signs and submits with its own wallet.
 - Register `BASE_BUILDER_CODE` in Base dashboard and verify attribution on a Sepolia launch.
 - Configure a Lighthouse API key and, when available, a dedicated Lighthouse gateway.
 - Configure a pooled Neon Postgres `DATABASE_URL` and verify expiry cleanup in the deployment environment.
-- Configure the Lighthouse, Neon, and x402 facilitator services required by the selected environment.
+- Configure the Coinbase CDP x402 facilitator URL and server-only `CDP_API_KEY_ID` / `CDP_API_KEY_SECRET` credentials. Production uses Base Mainnet; Vercel Preview is disabled by default and must never inherit production payment credentials.
 - Run `pnpm build`, `pnpm test`, and `base-forge test -vvv`.
 - Dry run Base Sepolia launch with IPFS metadata and policy settings before Base Mainnet.

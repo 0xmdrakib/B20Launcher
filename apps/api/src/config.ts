@@ -9,6 +9,8 @@ import { BASE_MAINNET_CHAIN_ID, ZERO_ADDRESS } from "@base-b20/b20";
 
 import { normalizeLighthouseGatewayUrl } from "./lib/lighthouse-gateway.js";
 
+export const CDP_X402_FACILITATOR_URL = "https://api.cdp.coinbase.com/platform/v2/x402";
+
 const cwd = process.cwd();
 const workspaceRoot =
   path.basename(cwd) === "api" && path.basename(path.dirname(cwd)) === "apps"
@@ -20,6 +22,7 @@ loadEnv({ path: path.join(workspaceRoot, ".env"), override: false, quiet: true }
 
 const rawConfigSchema = z.object({
   NODE_ENV: z.string().optional().default("development"),
+  VERCEL_ENV: z.string().optional().default("development"),
   API_PORT: z.coerce.number().int().positive().optional().default(4020),
   WEB_ORIGIN: z.string().optional().default("http://localhost:3000"),
   BASE_CHAIN_ID: z.coerce.number().int().positive().optional().default(BASE_MAINNET_CHAIN_ID),
@@ -33,7 +36,14 @@ const rawConfigSchema = z.object({
     .optional()
     .default("https://gateway.lighthouse.storage/ipfs"),
   DATABASE_URL: z.string().optional().default(""),
+  CDP_API_KEY_ID: z.string().optional().default(""),
+  CDP_API_KEY_SECRET: z.string().optional().default(""),
   X402_ENABLED: z
+    .string()
+    .optional()
+    .default("false")
+    .transform((value) => value === "true"),
+  X402_PREVIEW_ENABLED: z
     .string()
     .optional()
     .default("false")
@@ -44,13 +54,21 @@ const rawConfigSchema = z.object({
   X402_FACILITATOR_URL: z
     .string()
     .optional()
-    .default("https://facilitator.payai.network")
+    .default(CDP_X402_FACILITATOR_URL)
 });
 
 const normalizedEnv = Object.fromEntries(
   Object.entries(process.env).map(([key, value]) => [key, value === "" ? undefined : value])
 );
 const parsed = rawConfigSchema.parse(normalizedEnv);
+const {
+  CDP_API_KEY_ID: cdpApiKeyId,
+  CDP_API_KEY_SECRET: cdpApiKeySecret,
+  ...safeParsed
+} = parsed;
+const effectiveX402Enabled =
+  parsed.X402_ENABLED &&
+  (parsed.VERCEL_ENV !== "preview" || parsed.X402_PREVIEW_ENABLED);
 
 function optionalAddress(value: string, key: string): Address {
   if (!isAddress(value)) {
@@ -60,7 +78,8 @@ function optionalAddress(value: string, key: string): Address {
 }
 
 export const config = {
-  ...parsed,
+  ...safeParsed,
+  X402_ENABLED: effectiveX402Enabled,
   LIGHTHOUSE_GATEWAY_URL: normalizeLighthouseGatewayUrl(parsed.LIGHTHOUSE_GATEWAY_URL),
   B20_LAUNCH_ROUTER_ADDRESS: optionalAddress(
     parsed.B20_LAUNCH_ROUTER_ADDRESS,
@@ -75,4 +94,32 @@ if (config.X402_ENABLED && config.X402_PAY_TO === ZERO_ADDRESS) {
 
 if (config.X402_ENABLED && !config.X402_PRICE) {
   throw new Error("X402_PRICE is required when X402_ENABLED=true");
+}
+
+if (config.X402_ENABLED && !/^\$\d+(?:\.\d+)?$/.test(config.X402_PRICE)) {
+  throw new Error('X402_PRICE must be a dollar-prefixed value such as "$0.01"');
+}
+
+if (config.X402_ENABLED && !/^eip155:\d+$/.test(config.X402_NETWORK)) {
+  throw new Error("X402_NETWORK must use an EVM CAIP-2 identifier such as eip155:8453");
+}
+
+if (config.X402_ENABLED && config.X402_NETWORK !== `eip155:${config.BASE_CHAIN_ID}`) {
+  throw new Error("X402_NETWORK must match BASE_CHAIN_ID for this Base-only application");
+}
+
+if (config.X402_ENABLED && config.X402_FACILITATOR_URL !== CDP_X402_FACILITATOR_URL) {
+  throw new Error(`X402_FACILITATOR_URL must be ${CDP_X402_FACILITATOR_URL}`);
+}
+
+if (
+  config.VERCEL_ENV === "preview" &&
+  config.X402_PREVIEW_ENABLED &&
+  config.X402_NETWORK === "eip155:8453"
+) {
+  throw new Error("Preview x402 must use Base Sepolia; mainnet payments are production-only");
+}
+
+if (config.X402_ENABLED && (!cdpApiKeyId.trim() || !cdpApiKeySecret.trim())) {
+  throw new Error("CDP_API_KEY_ID and CDP_API_KEY_SECRET are required when X402_ENABLED=true");
 }
