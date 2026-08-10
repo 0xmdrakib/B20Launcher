@@ -57,9 +57,8 @@ The agent signs and submits with its own wallet.
 ## Production Checklist
 
 - Deploy `B20LaunchRouter` with Base Foundry and verify on Basescan.
-- Register `BASE_BUILDER_CODE` in Base dashboard and verify attribution on a Sepolia launch.
+- Register `BASE_BUILDER_CODE` in Base dashboard and verify attribution on a Base Mainnet launch.
 - Configure a Lighthouse API key and, when available, a dedicated Lighthouse gateway.
 - Configure a pooled Neon Postgres `DATABASE_URL` and verify expiry cleanup in the deployment environment.
-- Configure the Coinbase CDP x402 facilitator URL and server-only `CDP_API_KEY_ID` / `CDP_API_KEY_SECRET` credentials. Production uses Base Mainnet; Vercel Preview is disabled by default and must never inherit production payment credentials.
+- Configure the Coinbase CDP x402 facilitator URL and server-only `CDP_API_KEY_ID` / `CDP_API_KEY_SECRET` credentials. Production uses Base Mainnet; x402 is disabled in every Vercel Preview deployment and never inherits production payment credentials.
 - Run `pnpm build`, `pnpm test`, and `base-forge test -vvv`.
-- Dry run Base Sepolia launch with IPFS metadata and policy settings before Base Mainnet.

@@ -1,7 +1,7 @@
 "use client";
 
 import { createConfig, http } from "wagmi";
-import { base, baseSepolia } from "wagmi/chains";
+import { base } from "wagmi/chains";
 import { injected, walletConnect } from "wagmi/connectors";
 
 const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID?.trim();
@@ -26,11 +26,10 @@ const connectors = [
 ];
 
 export const wagmiConfig = createConfig({
-  chains: [base, baseSepolia],
+  chains: [base],
   connectors,
   multiInjectedProviderDiscovery: true,
   transports: {
-    [base.id]: http("https://mainnet.base.org"),
-    [baseSepolia.id]: http("https://sepolia.base.org")
+    [base.id]: http("https://mainnet.base.org")
   }
 });

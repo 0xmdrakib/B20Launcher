@@ -1,7 +1,6 @@
 import { keccak256, toBytes, type Address, type Hex } from "viem";
 
 export const BASE_MAINNET_CHAIN_ID = 8453;
-export const BASE_SEPOLIA_CHAIN_ID = 84532;
 
 export const B20_FACTORY_ADDRESS =
   "0xB20f000000000000000000000000000000000000" as Address;

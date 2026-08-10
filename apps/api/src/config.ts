@@ -43,11 +43,6 @@ const rawConfigSchema = z.object({
     .optional()
     .default("false")
     .transform((value) => value === "true"),
-  X402_PREVIEW_ENABLED: z
-    .string()
-    .optional()
-    .default("false")
-    .transform((value) => value === "true"),
   X402_PAY_TO: z.string().optional().default(ZERO_ADDRESS),
   X402_PRICE: z.string().optional().default(""),
   X402_NETWORK: z.string().optional().default("eip155:8453"),
@@ -67,8 +62,7 @@ const {
   ...safeParsed
 } = parsed;
 const effectiveX402Enabled =
-  parsed.X402_ENABLED &&
-  (parsed.VERCEL_ENV !== "preview" || parsed.X402_PREVIEW_ENABLED);
+  parsed.X402_ENABLED && parsed.VERCEL_ENV !== "preview";
 
 function optionalAddress(value: string, key: string): Address {
   if (!isAddress(value)) {
@@ -110,14 +104,6 @@ if (config.X402_ENABLED && config.X402_NETWORK !== `eip155:${config.BASE_CHAIN_I
 
 if (config.X402_ENABLED && config.X402_FACILITATOR_URL !== CDP_X402_FACILITATOR_URL) {
   throw new Error(`X402_FACILITATOR_URL must be ${CDP_X402_FACILITATOR_URL}`);
-}
-
-if (
-  config.VERCEL_ENV === "preview" &&
-  config.X402_PREVIEW_ENABLED &&
-  config.X402_NETWORK === "eip155:8453"
-) {
-  throw new Error("Preview x402 must use Base Sepolia; mainnet payments are production-only");
 }
 
 if (config.X402_ENABLED && (!cdpApiKeyId.trim() || !cdpApiKeySecret.trim())) {
