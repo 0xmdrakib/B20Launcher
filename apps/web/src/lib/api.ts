@@ -57,10 +57,17 @@ async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return json as T;
 }
 
-export async function prepareMetadata(form: FormData) {
+type RequestOptions = { signal?: AbortSignal };
+
+function signalOption(options?: RequestOptions) {
+  return options?.signal ? { signal: options.signal } : {};
+}
+
+export async function prepareMetadata(form: FormData, options?: RequestOptions) {
   return jsonFetch<PreparedMetadataResponse>("/api/metadata/prepare", {
     method: "POST",
-    body: form
+    body: form,
+    ...signalOption(options)
   });
 }
 
@@ -69,37 +76,40 @@ export async function commitMetadata(body: {
   stageToken: string;
   idempotencyKey: string;
   txHash: string;
-}) {
+}, options?: RequestOptions) {
   return jsonFetch<PreparedMetadataResponse>("/api/metadata/commit", {
     method: "POST",
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
+    ...signalOption(options)
   });
 }
 
-export async function quoteLaunch(body: LaunchDraftInput, stageId: string, stageToken: string) {
+export async function quoteLaunch(body: LaunchDraftInput, stageId: string, stageToken: string, options?: RequestOptions) {
   return jsonFetch<QuoteResponse>("/api/b20/quote", {
     method: "POST",
     body: JSON.stringify(body),
     headers: {
       "X-Metadata-Stage-Id": stageId,
       "X-Metadata-Stage-Token": stageToken
-    }
+    },
+    ...signalOption(options)
   });
 }
 
-export async function buildLaunch(body: LaunchDraftInput, stageId: string, stageToken: string) {
+export async function buildLaunch(body: LaunchDraftInput, stageId: string, stageToken: string, options?: RequestOptions) {
   return jsonFetch<UnsignedLaunchTransaction>("/api/b20/build", {
     method: "POST",
     body: JSON.stringify(body),
     headers: {
       "X-Metadata-Stage-Id": stageId,
       "X-Metadata-Stage-Token": stageToken
-    }
+    },
+    ...signalOption(options)
   });
 }
 
-export async function getStatus(address: string) {
-  return jsonFetch(`/api/b20/${address}/status`);
+export async function getStatus(address: string, options?: RequestOptions) {
+  return jsonFetch(`/api/b20/${address}/status`, signalOption(options));
 }
 
 export { API_URL };

@@ -27,7 +27,7 @@ for (const viewport of viewports) {
     await expect(page.getByText("New issuance", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Start a new launch and clear the current draft" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Identity", exact: true })).toBeVisible();
-    await expect(page.getByText("© 2026 Md. Rakib • made with love and passion.", { exact: true })).toBeVisible();
+    await expect(page.getByText("© 2026 Md. Rakib · made with love and passion.", { exact: true })).toBeVisible();
     const metrics = await page.evaluate(() => ({
       clientWidth: document.documentElement.clientWidth,
       scrollWidth: document.documentElement.scrollWidth
@@ -90,7 +90,7 @@ test("new issuances mint 50 percent by default until manually overridden", async
 
 test("legacy drafts migrate without losing issuer input", async ({ page }) => {
   await page.addInitScript(() => {
-    localStorage.setItem("b20-forge-launch-draft-v1", JSON.stringify({ name: "Migrated Treasury", symbol: "MTY" }));
+    localStorage.setItem("b20-forge-launch-draft-v1", JSON.stringify({ name: "Migrated Treasury", symbol: "MTY", stageToken: "should-not-persist", attributedData: "0xdead" }));
   });
   await page.goto("/");
   await waitForLauncher(page);
@@ -101,6 +101,7 @@ test("legacy drafts migrate without losing issuer input", async ({ page }) => {
     legacy: localStorage.getItem("b20-forge-launch-draft-v1")
   }));
   expect(keys.current).toContain("Migrated Treasury");
+  expect(keys.current).not.toMatch(/should-not-persist|dead/);
   expect(keys.legacy).toBeNull();
 });
 
@@ -241,4 +242,50 @@ test("same-origin server routes expose health, manifest, validation, and x402 mo
   const x402 = await request.post("/x402/b20/build", { data: {} });
   expect(x402.status()).toBe(400);
   expect(x402.headers()["x-b20-x402-mode"]).toBe("disabled-local-development");
+});
+
+test("security headers and nonce CSP are present", async ({ request }) => {
+  const response = await request.get("/");
+  expect(response.headers()["x-content-type-options"]).toBe("nosniff");
+  expect(response.headers()["referrer-policy"]).toBe("strict-origin-when-cross-origin");
+  expect(response.headers()["permissions-policy"]).toContain("camera=()");
+  expect(response.headers()["cross-origin-opener-policy"]).toBe("same-origin-allow-popups");
+  expect(response.headers()["content-security-policy"]).toMatch(/script-src[^;]*nonce-/);
+  expect(response.headers()["content-security-policy"]).toContain("frame-ancestors 'none'");
+});
+
+test("sensitive launch material never enters browser storage", async ({ page }) => {
+  await page.goto("/");
+  await waitForLauncher(page);
+  const values = await page.evaluate(() => Object.entries(localStorage).map(([key, value]) => `${key}:${value}`));
+  expect(values.join("\n")).not.toMatch(/stageToken|attributedData|unsigned|privateKey|secret/i);
+});
+
+test("reset confirmation is keyboard-safe", async ({ page }) => {
+  await page.goto("/");
+  await waitForLauncher(page);
+  const trigger = page.getByRole("button", { name: "Start a new launch and clear the current draft" });
+  await trigger.click();
+  const dialog = page.getByRole("dialog", { name: "Start a new launch?" });
+  await expect(dialog).toBeVisible();
+  await expect(page.getByRole("button", { name: "Keep draft" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(trigger).toBeFocused();
+});
+
+test("mobile action bar reserves content space and supports focus", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await waitForLauncher(page);
+  await page.getByRole("button", { name: /Economics/ }).click();
+  const input = page.getByRole("textbox", { name: /^Maximum supply/ });
+  await input.focus();
+  await expect(input).toBeFocused();
+  await page.waitForTimeout(250);
+  const metrics = await page.evaluate(() => {
+    const focused = document.activeElement?.getBoundingClientRect();
+    return { focusedBottom: focused?.bottom ?? 0, top: focused?.top ?? 0, scrollY: window.scrollY, height: window.innerHeight };
+  });
+  expect(metrics.focusedBottom).toBeLessThanOrEqual(metrics.height);
 });

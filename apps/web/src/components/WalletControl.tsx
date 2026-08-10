@@ -164,7 +164,7 @@ export function WalletControl() {
                   disabled={isPending}
                 >
                   <span className="wallet-option-icon">
-                    {connector.icon ? <img src={connector.icon} alt="" /> : <Wallet size={21} />}
+                    {connector.icon ? <img src={connector.icon} alt="" width="42" height="42" /> : <Wallet size={21} />}
                   </span>
                   <span className="wallet-option-copy"><strong>{connector.name}</strong><small>Browser extension</small></span>
                   {connecting ? <LoaderCircle className="wallet-spinner" size={18} /> : null}

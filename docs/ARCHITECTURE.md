@@ -54,6 +54,12 @@
 
 The agent signs and submits with its own wallet.
 
+## Issuer Console UX and Security
+
+- The client uses a typed reducer (`apps/web/src/lib/launch-workflow.ts`) for metadata staging, transaction readiness, wallet submission, receipt confirmation, Lighthouse publication, and recoverable errors. Form edits increment an epoch, abort in-flight requests, and invalidate quotes; stage tokens and unsigned calldata remain memory-only.
+- Desktop uses a 248px progress rail and focused workbench; smaller bands switch to a horizontal stepper and single-column flow. Preview is an accessible sheet, and its lifecycle is truthful (`Draft`, `Staged`, `Transaction ready`, `Submitted`, `Live`).
+- The homepage is dynamically rendered so `apps/web/proxy.ts` can attach a per-request nonce CSP. Security headers include frame denial, restrictive permissions/referrer policy, popup-compatible COOP, and HSTS. Static trust/footer content is server-rendered; wallet and wizard interactions remain client islands.
+
 ## Production Checklist
 
 - Deploy `B20LaunchRouter` with Base Foundry and verify on Basescan.
