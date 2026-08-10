@@ -23,7 +23,7 @@ for (const viewport of viewports) {
     await waitForLauncher(page);
     await expect(page.getByRole("link", { name: "B20 Launcher home" })).toBeVisible();
     await expect(page.getByRole("region", { name: "What B20 Launcher is for" })).toBeVisible();
-    await expect(page.getByText("For anyone creating a token on Base.", { exact: true })).toBeVisible();
+    await expect(page.getByText("Launch a B20 asset or stablecoin on Base.", { exact: true })).toBeVisible();
     await expect(page.getByText("New issuance", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Start a new launch and clear the current draft" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Identity", exact: true })).toBeVisible();

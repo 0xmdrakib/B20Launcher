@@ -37,7 +37,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .topbar { position: sticky; top: 0; z-index: 40; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; height: 72px; padding: 0 28px; border-bottom: 1px solid var(--line); background: rgba(241,241,239,.94); backdrop-filter: blur(18px); }
 .brand { display: inline-flex; width: max-content; color: var(--ink); text-decoration: none; }
 .brand-lockup { display: inline-flex; align-items: center; }
-.brand-primary { display: block; width: 196px; height: 34px; object-fit: contain; object-position: left center; }
+.brand-mark { display: block; width: 70px; height: 34px; object-fit: contain; object-position: left center; }
+.brand-word { display: block; margin-left: 2px; color: var(--ink); font-size: 20px; font-weight: 650; letter-spacing: -.055em; line-height: 1; }
 .brand-compact { display: none; width: 70px; height: 30px; object-fit: contain; object-position: left center; }
 .nav-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .wallet-pill { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 7px 4px 12px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); font-size: 12px; font-weight: 700; white-space: nowrap; }
@@ -330,7 +331,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 
 @media (max-width: 639px) {
   .topbar { height: 60px; padding: 0 12px; }
-  .brand-primary { display: none; }
+  .brand-mark, .brand-word { display: none; }
   .brand-compact { display: block; width: 68px; height: 28px; }
   .nav-actions { gap: 5px; }
   .nav-actions > a.icon-button { display: none; }
@@ -442,15 +443,15 @@ button, a, input, textarea, select, summary { -webkit-tap-highlight-color: trans
 .nav-actions { min-width: 0; }
 .reset-action { display: inline-flex; align-items: center; gap: 7px; width: auto; min-width: 44px; padding-inline: 12px; }
 .reset-action span { font-size: 12px; font-weight: 700; }
+.reset-action-mobile { display: none; }
+.reset-action-desktop { display: inline-flex; order: 1; }
+.nav-actions > a.icon-button { order: 2; }
+.nav-actions > .wallet-pill { order: 3; }
 
-.launch-guide { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: clamp(24px, 5vw, 80px); padding: clamp(24px, 4vw, 48px) var(--content-gutter) clamp(20px, 3vw, 36px); }
-.launch-guide-copy { max-width: 720px; }
+.launch-guide { grid-template-columns: minmax(0, 1fr); align-items: center; gap: 0; padding: clamp(24px, 4vw, 48px) var(--content-gutter) clamp(20px, 3vw, 36px); }
+.launch-guide-copy { width: 100%; max-width: 1080px; }
 .launch-guide-copy p { margin: 10px 0 0; color: var(--body); font-size: clamp(15px, 1.2vw, 17px); line-height: 1.65; }
 .launch-guide-copy strong { color: var(--ink); }
-.trust-signals { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; max-width: 410px; }
-.trust-signals span { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; border: 1px solid var(--line-strong); border-radius: 999px; padding: 0 13px; background: var(--surface); color: var(--body); font-size: 13px; font-weight: 700; white-space: nowrap; }
-.trust-signals svg { color: var(--mint); }
-
 .launch-layout { display: grid; grid-template-columns: 248px minmax(0, 880px); justify-content: center; max-width: 1240px; margin: 0 auto; }
 .step-rail { min-width: 0; }
 .workbench { --workbench-gutter: clamp(24px, 4vw, 48px); min-width: 0; padding-bottom: 132px; }
@@ -507,12 +508,19 @@ button, a, input, textarea, select, summary { -webkit-tap-highlight-color: trans
 
 @media (min-width: 1280px) {
   .token-preview { display: none; }
-  .launch-layout { grid-template-columns: 248px minmax(0, 880px); }
+  .launch-layout { width: min(100%, 1240px); grid-template-columns: minmax(220px, 248px) minmax(0, min(880px, calc(100vw - 292px))); }
   .step-rail { position: sticky; top: 88px; align-self: start; max-height: calc(100dvh - 96px); overflow: auto; }
 }
 
+@media (min-width: 960px) {
+  .launch-guide { justify-content: center; padding-top: 16px; padding-bottom: 16px; }
+  .launch-guide-copy { justify-self: center; text-align: center; }
+  .launch-guide-copy p { font-size: clamp(15px, 1.1vw, 18px); line-height: 1.45; }
+  .wallet-dialog { padding-top: clamp(72px, 8vh, 96px); }
+}
+
 @media (min-width: 960px) and (max-width: 1279px) {
-  .launch-layout { display: block; max-width: 960px; }
+  .launch-layout { display: block; width: min(100%, 960px); max-width: 960px; }
   .step-rail { padding: 14px var(--content-gutter) 16px; border-right: 0; border-bottom: 1px solid var(--line); }
   .rail-heading, .rail-progress, .rail-note { display: none; }
   .steps { grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; }
@@ -520,12 +528,14 @@ button, a, input, textarea, select, summary { -webkit-tap-highlight-color: trans
   .step.active::before { top: auto; right: 8px; bottom: -1px; left: 8px; width: auto; height: 3px; }
   .step-copy small { display: block; }
   .step-short-label { display: none; }
-  .workbench { --workbench-gutter: var(--content-gutter); }
+  .workbench { width: 100%; --workbench-gutter: var(--content-gutter); }
 }
 
 @media (max-width: 959px) {
   .launch-guide { grid-template-columns: 1fr; }
-  .trust-signals { justify-content: flex-start; max-width: none; }
+  .reset-action-mobile { display: inline-flex; }
+  .reset-action-desktop { display: none; }
+  .nav-actions > .reset-action-mobile { order: 1; }
   .launch-layout { display: block; }
   .token-preview { display: none; }
   .step-rail { padding: 12px var(--content-gutter) 14px; }
@@ -537,11 +547,10 @@ button, a, input, textarea, select, summary { -webkit-tap-highlight-color: trans
   html { scroll-padding-top: 72px; }
   .topbar { height: 56px; padding-inline: 12px; }
   .reset-action { padding-inline: 8px; }
-  .reset-action span { display: none; }
+  .reset-action-mobile { padding-inline: 10px; }
+  .reset-action-mobile span { display: inline; font-size: 11px; }
   .launch-guide { gap: 12px; padding: 20px var(--content-gutter) 16px; }
   .launch-guide-copy p { font-size: 15px; }
-  .trust-signals { gap: 6px; }
-  .trust-signals span { min-height: 36px; padding-inline: 10px; font-size: 12px; }
   .step-rail { padding-inline: 10px; }
   .steps { gap: 4px; }
   .step { min-height: 58px; padding: 7px 3px; }
@@ -553,11 +562,12 @@ button, a, input, textarea, select, summary { -webkit-tap-highlight-color: trans
   .section-row p { font-size: 14px; }
   .field > span { font-size: 14px; }
   .field input, .field textarea, .field-pair input, .input-suffix input { font-size: 16px; }
-  .workbench-actions { min-height: 78px; margin-top: 24px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+  .workbench-actions { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; min-height: 78px; margin-top: 24px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
   .workbench-actions .button { min-height: 50px; }
   .back-action span, .preview-trigger span { display: none; }
-  .workbench-actions > div:last-child { min-width: 0; flex: 1; }
-  .workbench-actions > div:last-child .button { width: 100%; max-width: none; }
+  .workbench-actions > div { min-width: 0; }
+  .workbench-actions > div:last-child { width: 100%; min-width: 0; }
+  .workbench-actions > div:last-child .button { width: 100%; min-width: 0; max-width: none; padding-inline: 10px; white-space: normal; text-align: center; }
   .preview-dialog, .confirm-dialog { padding-bottom: env(safe-area-inset-bottom); }
   .confirm-dialog { width: 100%; margin: auto 0 0; border-right: 0; border-bottom: 0; border-left: 0; border-radius: 14px 14px 0 0; }
   .confirm-dialog::before { display: block; width: 42px; height: 4px; margin: 9px auto 0; border-radius: 999px; background: var(--line-strong); content: ""; }
@@ -567,6 +577,8 @@ button, a, input, textarea, select, summary { -webkit-tap-highlight-color: trans
 }
 
 @media (max-width: 359px), (max-height: 560px) and (orientation: landscape) {
+  .reset-action-mobile { width: 44px; padding-inline: 8px; }
+  .reset-action-mobile span { display: none; }
   .workbench { padding-bottom: 32px; }
   .workbench-actions { position: static; margin-right: 0; margin-left: 0; }
 }

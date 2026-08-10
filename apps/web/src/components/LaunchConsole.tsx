@@ -779,7 +779,8 @@ export function LaunchConsole() {
         apiUrl={API_URL}
         walletControl={
           <>
-            <button className="icon-button reset-action" onClick={requestResetDraft} title="Start a new launch" aria-label="Start a new launch and clear the current draft"><RotateCcw size={17} /><span>New launch</span></button>
+            <button className="icon-button reset-action reset-action-mobile" onClick={requestResetDraft} title="Start a new launch" aria-label="Start a new launch and clear the current draft"><RotateCcw size={17} /><span>New launch</span></button>
+            <button className="button reset-action reset-action-desktop" onClick={requestResetDraft} title="Start a new launch" aria-label="Start a new launch and clear the current draft"><RotateCcw size={17} /><span>New launch</span></button>
             <WalletControl />
           </>
         }
@@ -788,12 +789,7 @@ export function LaunchConsole() {
       <section className="launch-guide" aria-label="What B20 Launcher is for">
         <div className="launch-guide-copy">
           <span className="eyebrow">What this is</span>
-          <p><strong>For anyone creating a token on Base.</strong> Launch a B20 asset or stablecoin, configure its identity, supply, and controls, then sign one transaction from your own wallet. B20 is Base&apos;s native token standard; the platform never holds your keys or tokens.</p>
-        </div>
-        <div className="trust-signals" aria-label="Trust signals">
-          <span><CheckCircle2 size={15} aria-hidden="true" /> Base Mainnet</span>
-          <span><KeyRound size={15} aria-hidden="true" /> Non-custodial</span>
-          <span><CheckCircle2 size={15} aria-hidden="true" /> No platform fee</span>
+          <p><strong>Launch a B20 asset or stablecoin on Base.</strong> Set its identity, supply and controls, then approve one transaction in your wallet.</p>
         </div>
       </section>
 

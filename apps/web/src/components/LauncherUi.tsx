@@ -9,7 +9,8 @@ export type StepDefinition = { label: string; shortLabel: string; detail: string
 export function BrandLogo({ compact = false }: { compact?: boolean }) {
   return (
     <span className={`brand-lockup ${compact ? "compact" : ""}`}>
-      <img src="/brand/b20-launcher-approved.png" alt="B20 Launcher" className="brand-primary" width="196" height="34" />
+      <img src="/brand/b20-mark-approved.png" alt="" className="brand-mark" width="70" height="34" />
+      <span className="brand-word">Launcher</span>
       <img src="/brand/b20-mark-approved.png" alt="B20 Launcher" className="brand-compact" width="70" height="30" />
     </span>
   );
