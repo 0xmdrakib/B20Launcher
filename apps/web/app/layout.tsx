@@ -10,10 +10,10 @@ const title = "B20 Launcher | Issue on Base";
 const description =
   "Professional, non-custodial B20 issuance on Base with Lighthouse permanent metadata and x402 agent tooling.";
 const socialImage = {
-  url: "/brand/b20-launcher-social.png",
+  url: "/brand/b20-launcher-social-v2.png",
   width: 1200,
   height: 630,
-  alt: "B20 Launcher",
+  alt: "B20 Launcher — Issue on Base. Three graphite coins with silver B20 lettering.",
   type: "image/png"
 };
 
