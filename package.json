@@ -11,6 +11,8 @@
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "test:e2e": "pnpm --filter @base-b20/web test:e2e",
+    "check:visibility": "node scripts/check-token-visibility.mjs",
+    "test:visibility": "node --test scripts/check-token-visibility.test.mjs",
     "typecheck": "pnpm --filter @base-b20/b20 build && pnpm -r typecheck"
   },
   "devDependencies": {

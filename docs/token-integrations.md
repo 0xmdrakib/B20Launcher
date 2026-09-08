@@ -58,4 +58,6 @@ The user-triggered Add to wallet action calls `wallet_watchAsset` with the publi
 
 For an aggregator integration, provide the API origin, chain ID, router/event above, a sample token, and the feed schema. Confirm which endpoint or event stream the consumer accepts and how it refreshes token images. Creating this API does not subscribe an external platform to it.
 
+[Prepared consumer requests and acceptance procedure](integrations/onboarding-requests.md) contain the verified official routes and provider-specific drafts. Run `pnpm test:visibility` for the acceptance checker's identity tests, then `pnpm check:visibility <address> <report.json>` for read-only live checks. An unavailable provider or missing logo does not count as integration success.
+
 Pool discovery and logo ingestion are separate checks. B20 Launcher does not create liquidity pools. Consumer-specific integration, asset-list inclusion, or explorer token-profile approval may still be required. No per-token CoinGecko submission is assumed as the platform's operating model. See [the launchpad research](token-logo-discovery-research.md) for the evidence.
