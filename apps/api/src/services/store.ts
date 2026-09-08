@@ -192,63 +192,67 @@ class PostgresStore implements Store {
   }
 
   async initialize() {
-    await this.sql`
-      CREATE TABLE IF NOT EXISTS b20_launch_records (
-        idempotency_key TEXT PRIMARY KEY,
-        predicted_token TEXT NOT NULL,
-        payload JSONB NOT NULL,
-        created_at TIMESTAMPTZ NOT NULL
-      )
-    `;
-    await this.sql`
-      CREATE TABLE IF NOT EXISTS b20_metadata_stages (
-        stage_id UUID PRIMARY KEY,
-        secret_hash TEXT NOT NULL,
-        contract_uri TEXT NOT NULL,
-        expires_at TIMESTAMPTZ NOT NULL,
-        logo_body BYTEA,
-        contract_body TEXT,
-        prepared JSONB NOT NULL,
-        status TEXT NOT NULL CHECK (status IN ('staged', 'bound', 'publishing', 'committed')),
-        idempotency_key TEXT,
-        tx_to TEXT,
-        attributed_data TEXT,
-        tx_hash TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `;
-    await this.sql`
-      ALTER TABLE b20_metadata_stages
-      DROP CONSTRAINT IF EXISTS b20_metadata_stages_contract_uri_key
-    `;
-    await this.sql`
-      CREATE INDEX IF NOT EXISTS b20_metadata_stages_expiry_idx
-      ON b20_metadata_stages (expires_at)
-      WHERE status <> 'committed'
-    `;
-    await this.sql`
-      CREATE TABLE IF NOT EXISTS b20_rate_limits (
-        scope_key TEXT NOT NULL,
-        window_start BIGINT NOT NULL,
-        hits INTEGER NOT NULL,
-        expires_at TIMESTAMPTZ NOT NULL,
-        PRIMARY KEY (scope_key, window_start)
-      )
-    `;
-    await this.sql`
-      CREATE INDEX IF NOT EXISTS b20_published_stages_launch_idx
-      ON b20_metadata_stages (idempotency_key)
-      WHERE status = 'committed'
-    `;
-    await this.sql`
-      CREATE INDEX IF NOT EXISTS b20_launch_records_address_idx
-      ON b20_launch_records (LOWER(predicted_token))
-    `;
-    await this.sql`
-      CREATE INDEX IF NOT EXISTS b20_rate_limits_expiry_idx
-      ON b20_rate_limits (expires_at)
-    `;
+    await this.sql.begin(async (sql) => {
+      // Serialize schema setup across independent serverless cold starts.
+      await sql`SELECT pg_advisory_xact_lock(8453, 2001)`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS b20_launch_records (
+          idempotency_key TEXT PRIMARY KEY,
+          predicted_token TEXT NOT NULL,
+          payload JSONB NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL
+        )
+      `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS b20_metadata_stages (
+          stage_id UUID PRIMARY KEY,
+          secret_hash TEXT NOT NULL,
+          contract_uri TEXT NOT NULL,
+          expires_at TIMESTAMPTZ NOT NULL,
+          logo_body BYTEA,
+          contract_body TEXT,
+          prepared JSONB NOT NULL,
+          status TEXT NOT NULL CHECK (status IN ('staged', 'bound', 'publishing', 'committed')),
+          idempotency_key TEXT,
+          tx_to TEXT,
+          attributed_data TEXT,
+          tx_hash TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+      await sql`
+        ALTER TABLE b20_metadata_stages
+        DROP CONSTRAINT IF EXISTS b20_metadata_stages_contract_uri_key
+      `;
+      await sql`
+        CREATE INDEX IF NOT EXISTS b20_metadata_stages_expiry_idx
+        ON b20_metadata_stages (expires_at)
+        WHERE status <> 'committed'
+      `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS b20_rate_limits (
+          scope_key TEXT NOT NULL,
+          window_start BIGINT NOT NULL,
+          hits INTEGER NOT NULL,
+          expires_at TIMESTAMPTZ NOT NULL,
+          PRIMARY KEY (scope_key, window_start)
+        )
+      `;
+      await sql`
+        CREATE INDEX IF NOT EXISTS b20_published_stages_launch_idx
+        ON b20_metadata_stages (idempotency_key)
+        WHERE status = 'committed'
+      `;
+      await sql`
+        CREATE INDEX IF NOT EXISTS b20_launch_records_address_idx
+        ON b20_launch_records (LOWER(predicted_token))
+      `;
+      await sql`
+        CREATE INDEX IF NOT EXISTS b20_rate_limits_expiry_idx
+        ON b20_rate_limits (expires_at)
+      `;
+    });
   }
 
   async saveLaunch(record: LaunchRecord) {
