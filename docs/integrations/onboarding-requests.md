@@ -1,18 +1,18 @@
 # B20 Launcher consumer integration requests
 
-Prepared: 2026-09-09. Status: **drafts; none submitted or accepted**.
+Prepared: 2026-09-09. Submission progress and receipts are recorded in [submission-status.md](submission-status.md). Provider acceptance and automatic ingestion remain unverified.
 
 This is one platform integration per consumer, covering future B20 launches. The sample assets are explicitly test tokens. No individual paid token-profile orders, liquidity operations, fabricated trading volume, or token-list endorsements are proposed.
 
 ## Submission register
 
-| Consumer | Verified official route | Request | Remaining submission requirement |
+| Consumer | Verified official route | Request | Follow-through |
 | --- | --- | --- | --- |
-| GeckoTerminal | [GeckoTerminal support form](https://support.coingecko.com/hc/en-us/requests/new?ticket_form_id=32495890222105) | Route B20's publication feed to the launchpad metadata integration team | Sender authorization and contact email; then their acceptance/adapter requirements |
-| DEX Screener | [Official Discord](https://discord.gg/wpV9vZsbR4), linked by [their integration documentation](https://docs.dexscreener.com/dex-listing) | Find the appropriate channel for platform metadata ingestion; B20 is an issuer, not a DEX | Sender authorization and an authenticated Discord session; then their acceptance/adapter requirements |
-| Uniswap Labs | [Support form](https://support.uniswap.org/hc/en-us/requests/new) | Request the accepted Base token-information source/onboarding path | Sender authorization and contact email; then their response |
-| MetaMask | Support button on [official developer guidance](https://support.metamask.io/develop/how-to-add-a-token-logo/) | Ask about source-level token-list ingestion for Base | Sender authorization/contact details; direct wallet import is already implemented |
-| BaseScan | [Contact form](https://basescan.org/contactus), **1.a. General Inquiry** | Ask whether platform feeds or bulk verified-issuer updates are supported | Sender authorization and contact email; then their answer and any ownership verification |
+| GeckoTerminal | [GeckoTerminal support form](https://support.coingecko.com/hc/en-us/requests/new?ticket_form_id=32495890222105) | Route B20's publication feed to the launchpad metadata integration team | Ticket #137396; await source acceptance and adapter requirements |
+| DEX Screener | [Partnership form](https://forms.gle/TLbPqn3owY5zvGxh9), linked by the FAQ in [official Discord](https://discord.gg/wpV9vZsbR4) | Request platform metadata ingestion; B20 is an issuer, not a DEX | Form response recorded; await acceptance/adapter requirements |
+| Uniswap Labs | [Support form](https://support.uniswap.org/hc/en-us/requests/new) | Request the accepted Base token-information source/onboarding path | Ticket #256149; await their response |
+| MetaMask | Contact Support on [official support](https://support.metamask.io/) | Ask about source-level token-list ingestion for Base | Technical Support ticket #131700638; await team response |
+| BaseScan | [Contact form](https://basescan.org/contactus), **1.a. General Inquiry** | Ask whether platform feeds or bulk verified-issuer updates are supported | Ticket #846900; await their answer and any ownership verification |
 
 The [CoinGecko support directory](https://support.coingecko.com/hc/en-us/articles/23960919544345-Support-Directory-CoinGecko-Request-Forms) directs requests outside individual listings to support. A DEX/chain listing is not an accurate description of this token issuer.
 
