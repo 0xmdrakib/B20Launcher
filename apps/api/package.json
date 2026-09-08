@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./lighthouse-gateway": {
+      "types": "./dist/lib/lighthouse-gateway.d.ts",
+      "import": "./dist/lib/lighthouse-gateway.js"
+    },
     "./core": {
       "types": "./dist/core.d.ts",
       "import": "./dist/core.js"

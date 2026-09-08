@@ -1,14 +1,22 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { DEFAULT_LIGHTHOUSE_GATEWAY_URL, normalizeLighthouseGatewayUrl } from "@base-b20/api/lighthouse-gateway";
 
 function contentSecurityPolicy() {
   const nonce = btoa(crypto.randomUUID());
   const isDevelopment = process.env.NODE_ENV !== "production";
+  const gateway = normalizeLighthouseGatewayUrl(
+    process.env.LIGHTHOUSE_GATEWAY_URL || DEFAULT_LIGHTHOUSE_GATEWAY_URL
+  );
+  const imageOrigins = [...new Set([
+    new URL(DEFAULT_LIGHTHOUSE_GATEWAY_URL).origin,
+    new URL(gateway).origin
+  ])].join(" ");
   const scriptSource = [`'self'`, `'nonce-${nonce}'`, `'strict-dynamic'`, ...(isDevelopment ? [`'unsafe-eval'`] : [])].join(" ");
   const directives = [
     "default-src 'self'",
     `script-src ${scriptSource}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' blob: data: https://gateway.lighthouse.storage",
+    `img-src 'self' blob: data: ${imageOrigins}`,
     "font-src 'self'",
     "connect-src 'self' https://api.cdp.coinbase.com https://mainnet.base.org https://rpc.walletconnect.com https://rpc.walletconnect.org https://relay.walletconnect.com https://relay.walletconnect.org wss://relay.walletconnect.com wss://relay.walletconnect.org https://pulse.walletconnect.com https://pulse.walletconnect.org https://keys.walletconnect.com https://keys.walletconnect.org https://notify.walletconnect.com https://notify.walletconnect.org https://cca-lite.coinbase.com",
     "frame-src 'self' https://verify.walletconnect.com https://verify.walletconnect.org",

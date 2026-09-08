@@ -7,7 +7,7 @@ import { z } from "zod";
 
 import { BASE_MAINNET_CHAIN_ID, ZERO_ADDRESS } from "@base-b20/b20";
 
-import { normalizeLighthouseGatewayUrl } from "./lib/lighthouse-gateway.js";
+import { DEFAULT_LIGHTHOUSE_GATEWAY_URL, normalizeLighthouseGatewayUrl } from "./lib/lighthouse-gateway.js";
 
 export const CDP_X402_FACILITATOR_URL = "https://api.cdp.coinbase.com/platform/v2/x402";
 
@@ -34,7 +34,7 @@ const rawConfigSchema = z.object({
     .string()
     .url()
     .optional()
-    .default("https://gateway.lighthouse.storage/ipfs"),
+    .default(DEFAULT_LIGHTHOUSE_GATEWAY_URL),
   DATABASE_URL: z.string().optional().default(""),
   CDP_API_KEY_ID: z.string().optional().default(""),
   CDP_API_KEY_SECRET: z.string().optional().default(""),

@@ -64,7 +64,8 @@ The agent signs and submits with its own wallet.
 
 - Deploy `B20LaunchRouter` with Base Foundry and verify on Basescan.
 - Register `BASE_BUILDER_CODE` in Base dashboard and verify attribution on a Base Mainnet launch.
-- Configure a Lighthouse API key and, when available, a dedicated Lighthouse gateway.
+- Configure a server-only Lighthouse API key. `LIGHTHOUSE_GATEWAY_URL` is the HTTPS retrieval base ending in `/ipfs`; B20 uses `https://protective-walrus-h5noy.lighthouseweb3.xyz/ipfs` in Vercel Production and Preview. The authenticated upload endpoint remains `upload.lighthouse.storage`.
+- The page's image security policy allows the configured gateway's exact origin and the shared Lighthouse gateway. Gateway credentials, query strings, fragments, and wildcard hosts are rejected; the API key never belongs in a retrieval URL. Redeploy after changing Vercel environment variables.
 - Configure a pooled Neon Postgres `DATABASE_URL` and verify expiry cleanup in the deployment environment.
 - Configure the Coinbase CDP x402 facilitator URL and server-only `CDP_API_KEY_ID` / `CDP_API_KEY_SECRET` credentials. Production uses Base Mainnet; x402 is disabled in every Vercel Preview deployment and never inherits production payment credentials.
 - Run `pnpm build`, `pnpm test`, and `base-forge test -vvv`.
