@@ -41,9 +41,9 @@ The [machine-readable observations](base-logo-identity-audit.json) include raw d
 - A B20 token is a native precompile with the `0xef` code stub, not a conventional ERC-20 bytecode deployment. Base documents the stub and the `isB20Initialized` check. A consumer that requires ordinary bytecode selectors, a Solidity deployment trace, or explorer source recognition before reading identity can miss B20 tokens. Whether EtherDrops uses such a check remains unconfirmed. [Base architecture at audited revision](https://github.com/base/base-std/blob/be6d0450890e20fc4a739aeaff5e839f234d12a6/docs/architecture.md#2-how-a-token-is-created).
 - `Transfer(address(0), recipient, amount)` represents minting. The bot's `Null Address` label agrees with the actual mint logs. Pool creation is not required for `name()` or `symbol()` to return these values. [IB20 mint reference](https://docs.base.org/specifications/b20/reference/interfaces/ib20).
 
-## Action and limits
+## Limits
 
-The next targeted action is to give EtherDrops the [reproduction report](etherdrops-unknown-report.md), ask which token-info provider/RPC path failed, and have its B20 recognition or metadata cache corrected as appropriate. Basic identity can be obtained directly from Base without onboarding our custom token feed. Consumers choosing our feed can also use the existing public API.
+Basic identity can be obtained directly from Base without onboarding our custom token feed. Consumers choosing our feed can also use the existing public API.
 
 No contract mutation, new launch, paid listing, liquidity operation, or support message to EtherDrops was performed during this audit. The five earlier onboarding inquiries remain separate submissions. Neither a source-format pass nor an onboarding receipt proves consumer logo display.
 
