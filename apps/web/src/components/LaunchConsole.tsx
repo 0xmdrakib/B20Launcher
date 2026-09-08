@@ -49,6 +49,7 @@ import {
 } from "./LauncherUi";
 import { WalletControl } from "./WalletControl";
 import { LaunchReviewBanner } from "./LaunchReviewBanner";
+import { AddTokenToWallet } from "./AddTokenToWallet";
 
 type Variant = "asset" | "stablecoin";
 
@@ -895,6 +896,10 @@ export function LaunchConsole() {
               {hash ? <a className="tx-link" href={`https://basescan.org/tx/${hash}`} target="_blank" rel="noopener noreferrer"><CheckCircle2 size={18} /><span><strong>{receiptConfirmed ? "Transaction confirmed" : "Transaction submitted"}</strong><small>{hash}</small></span><ExternalLink size={16} /></a> : null}
               {hash && !receiptConfirmed ? <button className="button secondary retry-publish" onClick={handleReceiptRetry} disabled={phase === "confirming"}><Network size={15} />{phase === "confirming" ? "Checking Base receipt" : "Check Base receipt"}</button> : null}
               {hash && receiptConfirmed && !storageReady ? <button className="button secondary retry-publish" onClick={handleCommitRetry} disabled={phase === "publishingMetadata"}><UploadCloud size={15} />{phase === "publishingMetadata" ? "Publishing metadata" : "Retry metadata publication"}</button> : null}
+              {receiptConfirmed && storageReady && quote && prepared?.logo ? <div className="published-token-actions">
+                <a className="button primary" href={`/token/${quote.predictedToken}`}>View token <ExternalLink size={16} /></a>
+                <AddTokenToWallet token={{ address: quote.predictedToken, name: form.name, symbol: form.symbol, decimals: tokenDecimals, logoURI: prepared.logo.gatewayUrls[0]! }} />
+              </div> : null}
             </div>
           ) : null}
 

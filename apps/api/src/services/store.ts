@@ -35,11 +35,24 @@ export type RateLimitResult = {
   resetAt: number;
 };
 
+export type PublishedTokenSource = {
+  address: string;
+  contractUri: string;
+  prepared: unknown;
+  router: Address;
+  launchData: Hex;
+  transactionHash: Hex;
+  publishedAt: string;
+};
+
+export type PublishedTokenQuery = { address?: string; after?: string; limit?: number };
+
 export interface Store {
   readonly kind: "memory" | "postgres";
   initialize(): Promise<void>;
   saveLaunch(record: LaunchRecord): Promise<void>;
   getLaunch(idempotencyKey: string): Promise<LaunchRecord | undefined>;
+  getPublishedTokens(query?: PublishedTokenQuery): Promise<PublishedTokenSource[]>;
   saveMetadataStage(record: MetadataStageRecord): Promise<void>;
   getMetadataStage(stageId: string): Promise<MetadataStageRecord | undefined>;
   getMetadataStageByContractUri(contractUri: string): Promise<MetadataStageRecord | undefined>;
@@ -68,6 +81,25 @@ class MemoryStore implements Store {
 
   async getLaunch(idempotencyKey: string) {
     return this.launches.get(idempotencyKey);
+  }
+
+  async getPublishedTokens(query: PublishedTokenQuery = {}) {
+    const records = new Map<string, PublishedTokenSource>();
+    for (const stage of this.metadataStages.values()) {
+      if (stage.status !== "committed" || !stage.binding || !stage.txHash) continue;
+      const launch = this.launches.get(stage.binding.idempotencyKey);
+      if (!launch) continue;
+      const address = launch.predictedToken.toLowerCase();
+      if (query.address && address !== query.address.toLowerCase()) continue;
+      if (query.after && address <= query.after.toLowerCase()) continue;
+      const prepared = stage.prepared as { storage?: { uploadedAt?: string } };
+      records.set(address, {
+        address, contractUri: stage.contractUri, prepared: stage.prepared,
+        router: stage.binding.to, launchData: stage.binding.attributedData,
+        transactionHash: stage.txHash, publishedAt: prepared.storage?.uploadedAt ?? launch.createdAt
+      });
+    }
+    return [...records.values()].sort((a, b) => a.address.localeCompare(b.address)).slice(0, query.limit);
   }
 
   async saveMetadataStage(record: MetadataStageRecord) {
@@ -205,6 +237,15 @@ class PostgresStore implements Store {
       )
     `;
     await this.sql`
+      CREATE INDEX IF NOT EXISTS b20_published_stages_launch_idx
+      ON b20_metadata_stages (idempotency_key)
+      WHERE status = 'committed'
+    `;
+    await this.sql`
+      CREATE INDEX IF NOT EXISTS b20_launch_records_address_idx
+      ON b20_launch_records (LOWER(predicted_token))
+    `;
+    await this.sql`
       CREATE INDEX IF NOT EXISTS b20_rate_limits_expiry_idx
       ON b20_rate_limits (expires_at)
     `;
@@ -230,6 +271,30 @@ class PostgresStore implements Store {
       payload: row.payload,
       createdAt: new Date(row.created_at as string).toISOString()
     };
+  }
+
+  async getPublishedTokens(query: PublishedTokenQuery = {}) {
+    const rows = await this.sql`
+      SELECT DISTINCT ON (LOWER(l.predicted_token))
+        LOWER(l.predicted_token) AS address, s.contract_uri, s.prepared,
+        s.tx_to, s.attributed_data, s.tx_hash, s.updated_at AS published_at
+      FROM b20_metadata_stages s
+      INNER JOIN b20_launch_records l ON l.idempotency_key = s.idempotency_key
+      WHERE s.status = 'committed' AND s.tx_hash IS NOT NULL
+        AND s.tx_to IS NOT NULL AND s.attributed_data IS NOT NULL
+        AND (${query.address?.toLowerCase() ?? null}::text IS NULL
+          OR LOWER(l.predicted_token) = ${query.address?.toLowerCase() ?? null})
+        AND (${query.after?.toLowerCase() ?? null}::text IS NULL
+          OR LOWER(l.predicted_token) > ${query.after?.toLowerCase() ?? null})
+      ORDER BY LOWER(l.predicted_token), s.updated_at DESC
+      LIMIT ${query.limit ?? null}
+    `;
+    return rows.map((row): PublishedTokenSource => ({
+      address: row.address as string, contractUri: row.contract_uri as string,
+      prepared: row.prepared, router: row.tx_to as Address,
+      launchData: row.attributed_data as Hex, transactionHash: row.tx_hash as Hex,
+      publishedAt: new Date(row.published_at as string).toISOString()
+    }));
   }
 
   async saveMetadataStage(record: MetadataStageRecord) {

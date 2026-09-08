@@ -10,4 +10,5 @@ export {
   type UploadedLogo
 } from "./services/ipfs.js";
 export { getAgentManifest } from "./services/manifest.js";
+export { getPublicToken, listPublicTokens, recentPublicTokens, publicTokenList, getPublicLogo, type PublicToken } from "./services/public-tokens.js";
 export { ensureStoreReady, store, type RateLimitResult } from "./services/store.js";

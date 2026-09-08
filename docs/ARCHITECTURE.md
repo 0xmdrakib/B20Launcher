@@ -1,5 +1,7 @@
 # Architecture
 
+Public wallet, explorer, and indexer endpoints are documented in [Token integrations](token-integrations.md). They project confirmed, published launches from the existing store; private staging records never cross the public API boundary.
+
 ## Runtime Surfaces
 
 - `apps/web`: Next.js issuer console for metadata, role setup, launch preview, wallet signing, and operations visibility.

@@ -8,6 +8,7 @@ import { config } from "./config.js";
 import { agentsRouter } from "./routes/agents.js";
 import { b20Router } from "./routes/b20.js";
 import { metadataRouter } from "./routes/metadata.js";
+import { publicTokensRouter } from "./routes/public-tokens.js";
 import { x402Router } from "./routes/x402.js";
 import { errorHandler } from "./lib/http.js";
 import { createX402Middleware } from "./lib/x402.js";
@@ -47,6 +48,7 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/api/metadata", metadataRouter);
+app.use("/api", publicTokensRouter);
 app.use("/api/b20", b20Router);
 app.use("/api/agents", agentsRouter);
 app.use("/x402", ...createX402Middleware(config), x402Router);

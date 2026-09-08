@@ -1,9 +1,11 @@
 import { NextRequest } from "next/server";
 
-import { apiRoute } from "../../../../src/server/api-route";
+import { recentPublicTokens } from "@base-b20/api/core";
+import { publicTokenRoute } from "../../../../src/server/public-token-route";
 
 export const runtime = "nodejs";
+export { publicTokenOptions as OPTIONS } from "../../../../src/server/public-token-route";
 
 export async function GET(request: NextRequest) {
-  return apiRoute(request, async () => ({ source: "rpc", rows: [] }));
+  return publicTokenRoute(request, recentPublicTokens);
 }

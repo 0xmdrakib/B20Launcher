@@ -15,6 +15,7 @@ export function asyncHandler(
 }
 
 export function errorHandler(error: unknown, _req: Request, res: Response, _next: NextFunction) {
+  res.setHeader("Cache-Control", "no-store");
   if (error instanceof multer.MulterError) {
     const message =
       error.code === "LIMIT_FILE_SIZE"
