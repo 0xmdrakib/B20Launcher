@@ -1,0 +1,195 @@
+{
+  "checkedAt": "2026-09-08T22:28:41.212Z",
+  "rpc": [
+    "https://mainnet.base.org",
+    "https://base-rpc.publicnode.com"
+  ],
+  "records": [
+    {
+      "address": "0xb200000000000000000000D9B4BfBC70F8929C64",
+      "transactionHash": "0x7f24447d6cf26ff1b8613a2f7e29b2ab69abbd94aad49e8dd6fb2dd9aa270d29",
+      "receiptStatus": "success",
+      "block": "51054858",
+      "blockTime": "2026-09-08T20:24:23Z",
+      "publishedAt": "2026-09-08T20:24:23.157Z",
+      "code": "0xef",
+      "initialized": true,
+      "atCreation": {
+        "name": "B20 Logo Test",
+        "symbol": "B20TEST",
+        "decimals": 18,
+        "totalSupply": "1000000000000000000000",
+        "contractURI": {
+          "error": "Archive requests require a personal token. Get one at: https://www.allnodes.com/publicnode"
+        }
+      },
+      "latest": {
+        "name": "B20 Logo Test",
+        "symbol": "B20TEST",
+        "decimals": 18,
+        "totalSupply": "1000000000000000000000",
+        "contractURI": "ipfs://bafybeiatxgg7g6e5sgimetjt2sxnq3i7ly7shntdfckhakz4kfyqs2qfii"
+      },
+      "events": [
+        {
+          "address": "0xb20f000000000000000000000000000000000000",
+          "eventName": "B20Created",
+          "args": {
+            "token": "0xb200000000000000000000D9B4BfBC70F8929C64",
+            "variant": 0,
+            "name": "B20 Logo Test",
+            "symbol": "B20TEST",
+            "decimals": 18,
+            "variantEventParams": "0x"
+          }
+        },
+        {
+          "address": "0xb200000000000000000000d9b4bfbc70f8929c64",
+          "eventName": "ContractURIUpdated"
+        },
+        {
+          "address": "0xb200000000000000000000d9b4bfbc70f8929c64",
+          "eventName": "Transfer",
+          "args": {
+            "from": "0x0000000000000000000000000000000000000000",
+            "to": "0xdE57dd241eA13A5EE749b940897538CF4ff4C25D",
+            "amount": "1000000000000000000000"
+          }
+        }
+      ],
+      "metadata": {
+        "httpStatus": 200,
+        "contentType": "application/json",
+        "body": {
+          "name": "B20 Logo Test",
+          "symbol": "B20TEST",
+          "description": "Test token for verifying the B20 Launcher logo upload and Lighthouse IPFS gateway.",
+          "image": "ipfs://bafybeiexqpn5tbibpp23cqlp6vpwcw3nlox4euockfy2fc7i4kmf4kp2tu",
+          "b20": {
+            "platform": "b20-launcher",
+            "variant": "asset",
+            "chainId": 8453,
+            "preparedAt": "2026-09-08T20:22:40.372Z",
+            "logoCid": "bafybeiexqpn5tbibpp23cqlp6vpwcw3nlox4euockfy2fc7i4kmf4kp2tu"
+          }
+        },
+        "nameMatches": true,
+        "symbolMatches": true,
+        "uriMatches": true,
+        "imageMatches": true
+      },
+      "logo": {
+        "httpStatus": 200,
+        "contentType": "image/png",
+        "bytes": 4565,
+        "width": 512,
+        "height": 512,
+        "sha256": "36a709228ab90e0010e60548b053f6a9d75eff13d3e2676dfaa19b3247c06a4c",
+        "matchesPublishedHash": true
+      },
+      "minted": [
+        {
+          "recipient": "0xdE57dd241eA13A5EE749b940897538CF4ff4C25D",
+          "amount": "1000"
+        }
+      ],
+      "recordedPublicationMinusBlockTimeSeconds": 0.157
+    },
+    {
+      "address": "0xB200000000000000000000aAfB51E3727b78856B",
+      "transactionHash": "0xd9c0e723870b5cbbc3836f9cddba01dd95fa88a35c4bebfdae4d2ea570c4b21b",
+      "receiptStatus": "success",
+      "block": "51055378",
+      "blockTime": "2026-09-08T20:41:43Z",
+      "publishedAt": "2026-09-08T20:41:44.021Z",
+      "code": "0xef",
+      "initialized": true,
+      "atCreation": {
+        "name": "B20 Logo Test 2",
+        "symbol": {
+          "error": "Archive requests require a personal token. Get one at: https://www.allnodes.com/publicnode"
+        },
+        "decimals": {
+          "error": "Archive requests require a personal token. Get one at: https://www.allnodes.com/publicnode"
+        },
+        "totalSupply": {
+          "error": "Archive requests require a personal token. Get one at: https://www.allnodes.com/publicnode"
+        },
+        "contractURI": {
+          "error": "Archive requests require a personal token. Get one at: https://www.allnodes.com/publicnode"
+        }
+      },
+      "latest": {
+        "name": "B20 Logo Test 2",
+        "symbol": "B20TEST",
+        "decimals": 18,
+        "totalSupply": "10000000000000000000000",
+        "contractURI": "ipfs://bafybeiejycpks3lvl45lsk5abisbn3tuujc3mufnztfpvcdbomoyl222xm"
+      },
+      "events": [
+        {
+          "address": "0xb20f000000000000000000000000000000000000",
+          "eventName": "B20Created",
+          "args": {
+            "token": "0xB200000000000000000000aAfB51E3727b78856B",
+            "variant": 0,
+            "name": "B20 Logo Test 2",
+            "symbol": "B20TEST",
+            "decimals": 18,
+            "variantEventParams": "0x"
+          }
+        },
+        {
+          "address": "0xb200000000000000000000aafb51e3727b78856b",
+          "eventName": "ContractURIUpdated"
+        },
+        {
+          "address": "0xb200000000000000000000aafb51e3727b78856b",
+          "eventName": "Transfer",
+          "args": {
+            "from": "0x0000000000000000000000000000000000000000",
+            "to": "0xdE57dd241eA13A5EE749b940897538CF4ff4C25D",
+            "amount": "10000000000000000000000"
+          }
+        }
+      ],
+      "metadata": {
+        "httpStatus": 200,
+        "contentType": "application/json",
+        "body": {
+          "name": "B20 Logo Test 2",
+          "symbol": "B20TEST",
+          "description": "Test token for verifying the B20 Launcher logo upload and Lighthouse IPFS gateway.",
+          "image": "ipfs://bafybeiexqpn5tbibpp23cqlp6vpwcw3nlox4euockfy2fc7i4kmf4kp2tu",
+          "b20": {
+            "platform": "b20-launcher",
+            "variant": "asset",
+            "chainId": 8453,
+            "preparedAt": "2026-09-08T20:41:18.949Z",
+            "logoCid": "bafybeiexqpn5tbibpp23cqlp6vpwcw3nlox4euockfy2fc7i4kmf4kp2tu"
+          }
+        },
+        "nameMatches": true,
+        "symbolMatches": true,
+        "uriMatches": true,
+        "imageMatches": true
+      },
+      "logo": {
+        "httpStatus": 200,
+        "contentType": "image/png",
+        "bytes": 4565,
+        "width": 512,
+        "height": 512,
+        "sha256": "36a709228ab90e0010e60548b053f6a9d75eff13d3e2676dfaa19b3247c06a4c",
+        "matchesPublishedHash": true
+      },
+      "minted": [
+        {
+          "recipient": "0xdE57dd241eA13A5EE749b940897538CF4ff4C25D",
+          "amount": "10000"
+        }
+      ],
+      "recordedPublicationMinusBlockTimeSeconds": 1.021
+    }
+  ]
+}
