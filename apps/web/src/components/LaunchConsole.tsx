@@ -48,6 +48,7 @@ import {
   type TokenPreviewModel
 } from "./LauncherUi";
 import { WalletControl } from "./WalletControl";
+import { LaunchReviewBanner } from "./LaunchReviewBanner";
 
 type Variant = "asset" | "stablecoin";
 
@@ -688,7 +689,7 @@ export function LaunchConsole() {
       if (!isCurrentEpoch(epoch)) return;
       setPrepared(committed);
       dispatchWorkflow({ type: "COMPLETE" });
-      setSuccess("Launch confirmed on Base Mainnet and metadata is live through Lighthouse.");
+      setSuccess("Your token is live on Base Mainnet.");
     } catch (err) {
       if (controller.signal.aborted || !isCurrentEpoch(epoch)) return;
       const code = typeof err === "object" && err && "code" in err ? (err as { code?: number }).code : undefined;
@@ -716,7 +717,7 @@ export function LaunchConsole() {
       if (!isCurrentEpoch(epoch)) return;
       setPrepared(committed);
       dispatchWorkflow({ type: "COMPLETE" });
-      setSuccess("Metadata is live and verified through Lighthouse.");
+      setSuccess("Your token is live on Base Mainnet.");
     } catch (err) {
       if (controller.signal.aborted || !isCurrentEpoch(epoch)) return;
       setError(err instanceof Error ? err.message : "Metadata publication could not be completed.");
@@ -879,12 +880,17 @@ export function LaunchConsole() {
 
           {step === 3 ? (
             <div className="step-content">
-              <div className="review-banner"><div className="review-icon"><Rocket size={24} /></div><div><span>{quote ? "Ready for final review" : "Review required fields"}</span><h2>{form.name || "Untitled token"} <b>{form.symbol || "SYMBOL"}</b></h2><p>{quote ? "One atomic Base Mainnet transaction. Your wallet remains the only signer." : "Complete the required fields, then build an unsigned transaction for your wallet to inspect."}</p></div></div>
+              <LaunchReviewBanner
+                image={previewImage}
+                name={form.name}
+                symbol={form.symbol}
+                status={phase === "complete" && storageReady ? "complete" : receiptConfirmed ? "confirmed" : hash ? "submitted" : quote ? "ready" : "draft"}
+              />
               <div className="review-grid">
                 <div className="review-block"><span>Deployment</span><div><small>Standard</small><strong>B20 {form.variant === "asset" ? "Asset" : "Stablecoin"}</strong></div><div><small>Network</small><strong>Base Mainnet / 8453</strong></div><div><small>Admin</small><strong>{shortAddress(admin)}</strong></div><div><small>Platform fee</small><strong>$0</strong></div></div>
                 <div className="review-block"><span>Storage</span><div><small>Provider</small><strong>Lighthouse</strong></div><div><small>Logo CID</small><strong>{compactCid(prepared?.logo?.cid)}</strong></div><div><small>Metadata CID</small><strong>{compactCid(prepared?.contract.cid)}</strong></div><div><small>Status</small><strong className={storageReady ? "good" : "warn"}>{storageReady ? "Live & verified" : receiptConfirmed ? "Receipt confirmed — publish pending" : metadataReady ? "Staged until submission" : "Not ready"}</strong></div></div>
               </div>
-              {quote ? <div className="transaction-card"><div className="transaction-head"><div><span>Unsigned transaction package</span><strong>{quote.predictedToken}</strong></div><span className="secure-badge"><KeyRound size={14} /> Non-custodial</span></div><div className="tx-metrics"><div><span>Router</span><strong>{shortAddress(transaction?.to)}</strong></div><div><span>Gas estimate</span><strong>{quote.gasEstimate ?? "RPC unavailable"}</strong></div><div><span>Transaction value</span><strong>0 ETH</strong></div></div><details><summary><Clipboard size={14} /> Inspect transaction calldata</summary><pre>{transaction?.attributedData}</pre></details></div> : <div className="build-prompt"><Network size={25} /><div><strong>Build the final transaction</strong><p>Every field is validated before the deterministic token address and unsigned transaction are prepared.</p></div></div>}
+              {quote ? <div className="transaction-card"><div className="transaction-head"><div><span>{hash ? "Token address" : "Unsigned transaction package"}</span><strong>{quote.predictedToken}</strong></div><span className="secure-badge"><KeyRound size={14} /> Non-custodial</span></div><div className="tx-metrics"><div><span>Router</span><strong>{shortAddress(transaction?.to)}</strong></div><div><span>Gas estimate</span><strong>{quote.gasEstimate ?? "RPC unavailable"}</strong></div><div><span>Transaction value</span><strong>0 ETH</strong></div></div><details><summary><Clipboard size={14} /> Inspect transaction calldata</summary><pre>{transaction?.attributedData}</pre></details></div> : <div className="build-prompt"><Network size={25} /><div><strong>Build the final transaction</strong><p>Every field is validated before the deterministic token address and unsigned transaction are prepared.</p></div></div>}
               {quote?.warnings.map((warning) => <div className="notice warning" key={warning}><AlertTriangle size={17} /><span>{warning}</span></div>)}
               {hash ? <a className="tx-link" href={`https://basescan.org/tx/${hash}`} target="_blank" rel="noopener noreferrer"><CheckCircle2 size={18} /><span><strong>{receiptConfirmed ? "Transaction confirmed" : "Transaction submitted"}</strong><small>{hash}</small></span><ExternalLink size={16} /></a> : null}
               {hash && !receiptConfirmed ? <button className="button secondary retry-publish" onClick={handleReceiptRetry} disabled={phase === "confirming"}><Network size={15} />{phase === "confirming" ? "Checking Base receipt" : "Check Base receipt"}</button> : null}
