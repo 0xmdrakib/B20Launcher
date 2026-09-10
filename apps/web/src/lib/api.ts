@@ -27,7 +27,7 @@ export type PreparedMetadataResponse = {
   storage: {
     provider: "Lighthouse";
     network: "IPFS + Filecoin";
-    status: "staged" | "committed";
+    status: "staged" | "ready" | "committed";
     verified: boolean;
     uploadedAt?: string;
   };
@@ -58,6 +58,14 @@ async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 type RequestOptions = { signal?: AbortSignal };
+
+type PublicationRequest = { stageId: string; stageToken: string; idempotencyKey: string; account: string };
+export function publicationChallenge(body: PublicationRequest, options?: RequestOptions) {
+  return jsonFetch<{ message: string; deadline: number }>("/api/metadata/publication-challenge", { method: "POST", body: JSON.stringify(body), ...signalOption(options) });
+}
+export function publishMetadata(body: PublicationRequest & { deadline: number; signature: string }, options?: RequestOptions) {
+  return jsonFetch<PreparedMetadataResponse>("/api/metadata/publish", { method: "POST", body: JSON.stringify(body), ...signalOption(options) });
+}
 
 function signalOption(options?: RequestOptions) {
   return options?.signal ? { signal: options.signal } : {};

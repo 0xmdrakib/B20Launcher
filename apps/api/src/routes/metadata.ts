@@ -5,7 +5,7 @@ import multer from "multer";
 import { config } from "../config.js";
 import { asyncHandler } from "../lib/http.js";
 import { assertLighthouseUploadAvailable } from "../services/lighthouse.js";
-import { commitMetadata, MAX_LOGO_BYTES, prepareMetadata } from "../services/ipfs.js";
+import { commitMetadata, MAX_LOGO_BYTES, prepareMetadata, publicationChallenge, publishMetadata } from "../services/ipfs.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -26,6 +26,13 @@ const commitLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many metadata publication attempts. Try again later." }
 });
+
+metadataRouter.post("/publication-challenge", commitLimiter, asyncHandler(async (req, res) => {
+  res.setHeader("Cache-Control", "no-store"); res.json(await publicationChallenge(req.body));
+}));
+metadataRouter.post("/publish", commitLimiter, asyncHandler(async (req, res) => {
+  res.setHeader("Cache-Control", "no-store"); res.json(await publishMetadata(req.body));
+}));
 
 metadataRouter.post(
   "/prepare",

@@ -33,6 +33,7 @@
     "express-rate-limit": "^8.1.0",
     "helmet": "^8.1.0",
     "ipfs-only-hash": "^4.0.0",
+    "jose": "^6.2.4",
     "multer": "^2.0.2",
     "pino": "^10.1.0",
     "pino-http": "^11.0.0",

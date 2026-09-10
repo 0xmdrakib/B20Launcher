@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { asyncHandler } from "../lib/http.js";
-import { getPublicLogo, getPublicToken, listPublicTokens, publicTokenList, recentPublicTokens } from "../services/public-tokens.js";
+import { getPublicLogo, getPublicToken, listPublicTokens, publicTokenList, publicTokenChanges, recentPublicTokens } from "../services/public-tokens.js";
 
 export const publicTokensRouter: Router = Router();
 publicTokensRouter.use(["/tokens", "/tokenlist", "/b20/recent"], (req, res, next) => {
@@ -17,6 +17,9 @@ publicTokensRouter.get("/tokens", asyncHandler(async (req, res) => {
     ...(req.query.limit === undefined ? {} : { limit: String(req.query.limit) }),
     ...(req.query.after === undefined ? {} : { after: String(req.query.after) })
   }));
+}));
+publicTokensRouter.get("/tokens/changes", asyncHandler(async (req, res) => {
+  res.json(await publicTokenChanges({ ...(req.query.after === undefined ? {} : { after: String(req.query.after) }), ...(req.query.limit === undefined ? {} : { limit: String(req.query.limit) }) }));
 }));
 publicTokensRouter.get("/tokens/:address", asyncHandler(async (req, res) => { res.json(await getPublicToken(String(req.params.address))); }));
 publicTokensRouter.get("/tokens/:address/metadata", asyncHandler(async (req, res) => { res.json((await getPublicToken(String(req.params.address))).metadata); }));

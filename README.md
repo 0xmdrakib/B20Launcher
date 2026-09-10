@@ -44,8 +44,9 @@ The app focuses on transparent issuance. It shows the predicted token address, e
 - The selected logo is validated and normalized before staging.
 - Logos larger than 1 MB are rejected.
 - Staged files are not published to Lighthouse immediately.
-- Publication happens only after the matching Base launch transaction is submitted and verified.
-- Abandoned drafts do not consume permanent project IPFS storage.
+- Before launching, the wallet signs a gas-free approval bound to the logo, profile, predicted address, and exact transaction. The API publishes and verifies the files before the wallet sends the launch transaction.
+- Preparing a draft uses temporary storage. Approving publication makes its IPFS files public even if the wallet subsequently cancels the launch; wallet and platform upload budgets bound storage use.
+- A durable server worker discovers confirmed launches after a browser disconnect and reconciles later onchain name, symbol, and profile changes. Consumers can poll `/api/tokens/changes` or use the standard `/api/tokenlist` feed.
 
 ### Supply and permissions
 

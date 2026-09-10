@@ -13,6 +13,10 @@ describe("launch workflow", () => {
     state = launchWorkflowReducer(state, { type: "BUILD_TRANSACTION" });
     state = launchWorkflowReducer(state, { type: "TRANSACTION_READY" });
     state = launchWorkflowReducer(state, { type: "AWAIT_WALLET" });
+    state = launchWorkflowReducer(state, { type: "PREPUBLISH" });
+    expect(state.phase).toBe("prepublishing");
+    expect(state.txHash).toBeUndefined();
+    state = launchWorkflowReducer(state, { type: "AWAIT_WALLET" });
     state = launchWorkflowReducer(state, { type: "SUBMITTED", txHash: "0xabc" });
     state = launchWorkflowReducer(state, { type: "CONFIRMING" });
     state = launchWorkflowReducer(state, { type: "PUBLISH_METADATA" });

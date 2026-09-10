@@ -23,16 +23,17 @@ Public wallet, explorer, and indexer endpoints are documented in [Token integrat
    - initial mint or batch mint
    - policies
    - pause last
-5. Wallet signs and submits attributed calldata. Backend never stores keys or submits the transaction.
-6. The client sends the transaction hash and private stage credentials to the metadata commit endpoint. The API verifies the router target, exact calldata, and successful Base receipt before it calls Lighthouse.
-7. Lighthouse CIDs must exactly match the locally predicted CIDs and the primary gateway must respond. Neon then removes the raw logo/JSON bytes immediately and retains a minimal committed audit record.
+5. Before sending a transaction, the wallet signs the publication challenge. It includes origin, chain, issuer, predicted address, router, calldata hash, stage ID, IPFS URIs, launch ID, and a ten-minute deadline. The server verifies the signature (including supported contract wallets), enforces durable upload budgets, locks the binding, and persists a discovery job before publishing.
+6. Lighthouse must return the predicted CIDs. The API retrieves both files through the configured gateway, with fixed `ipfs.io` fallback, and verifies byte limits and SHA-256. Only a verified `ready` response permits the frontend to request the launch transaction. Backend never stores wallet keys or submits transactions.
+7. The client reports the transaction hash; alternatively the server scans the known router's events from the prepublication block. Both paths verify exact router/calldata and a successful receipt before committing the public record. Raw stage bytes and the stage secret hash are removed on confirmation.
 
 ## Storage Lifecycle
 
 - The Lighthouse API key exists only in the API process environment. Browser and agent responses never contain it.
 - Metadata preparation cannot consume Lighthouse quota or create an IPFS/Filecoin object.
-- Missing, stolen, or forged stage credentials cannot bind a launch transaction.
-- Unconfirmed and reverted transactions cannot publish metadata.
+- Missing or forged stage credentials cannot bind a launch transaction. Stage credentials are bearer secrets and must remain private.
+- Prepublication requires wallet approval and a bound launch. Its files remain public if the issuer cancels. Unconfirmed or reverted launches are excluded from the address catalogue.
+- Default publication budgets are 10 attempts per wallet and 100 per platform per UTC day. Each failed request consumes budget; automatic retries are bounded. Authorized stages are retained for 30 days while waiting for launch discovery.
 - A five-minute cleanup worker deletes expired Neon stage rows. In production, `DATABASE_URL` is mandatory so pending stages survive API restarts.
 - IPFS/Filecoin publication is intentionally permanent. Cleanup applies to temporary Neon data; published token metadata is retained because the onchain token references its CID.
 
@@ -54,7 +55,19 @@ Public wallet, explorer, and indexer endpoints are documented in [Token integrat
 }
 ```
 
-The agent signs and submits with its own wallet.
+The agent calls `/api/metadata/publication-challenge`, signs the returned message, and sends the signature and deadline to `/api/metadata/publish`. It broadcasts with its own wallet only after the response reports `storage.status: "ready"` and `verified: true`. `/api/agents/manifest` describes the request fields. A quote alone is not proof that its IPFS files are public.
+
+## Durable indexing
+
+Postgres stores discovery/reconciliation jobs, leases, retry times, safe-block cursors, verified snapshots, and an append-only change feed. A five-minute lease protects each job; expired workers cannot overwrite newer snapshots or retire another worker's job. Change revision allocation and commit are serialized so consumers cannot skip a lower, uncommitted revision. Fingerprints canonicalize object keys because JSONB may reorder them.
+
+The worker discovers armed launches at Base's safe head in bounded block ranges and advances a cursor only after a successful scan. Existing committed launches are backfilled in pages. Reconciliation checks the canonical launch receipt and native `isB20Initialized`, then reads current name, symbol, decimals and `contractURI` at one safe block. Changed profiles and raster images are size bounded and retrieved only through fixed IPFS gateways; unsupported external URL schemes retain the last verified snapshot and retry. An unchanged immutable URI reuses its verified content to avoid unnecessary gateway traffic.
+
+On the current Vercel Hobby deployment, `.github/workflows/token-indexer.yml` invokes the worker every five minutes using GitHub OIDC. The server pins issuer, audience, numeric repository/owner IDs, branch, workflow path, algorithm and permitted trigger types; no persistent GitHub upload or database credential is sent to the app. GitHub schedules are best effort and may be delayed. A protected cron-secret alternative and the Express worker interval support other hosting arrangements. Repeated failures surface in the workflow logs while durable retry state is retained.
+
+Identity verification follows the [GitHub OIDC reference](https://docs.github.com/en/actions/reference/security/oidc) using [`jose` JWT verification](https://github.com/panva/jose). The scheduler choice respects [Vercel Hobby cron limits](https://vercel.com/docs/cron-jobs/usage-and-pricing).
+
+Migrations are additive/idempotent and serialized during initialization. Verify them on an isolated Neon branch with `B20_TEST_DATABASE_URL` and `pipeline-postgres.integration.test.ts` before deploying. Consumer adoption remains an external integration step; serving a standard token list does not subscribe third-party wallets or DEXs automatically.
 
 ## Issuer Console UX and Security
 

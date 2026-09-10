@@ -1,0 +1,30 @@
+{
+  "checkedAt": "2026-09-10T22:24:12.688Z",
+  "database": "isolated Neon test branch",
+  "results": [
+    {
+      "address": "0xb200000000000000000000aafb51e3727b78856b",
+      "name": "B20 Logo Test 2",
+      "symbol": "B20TEST",
+      "revision": 9,
+      "metadataSource": "onchain-contractURI",
+      "logoSha256": "36a709228ab90e0010e60548b053f6a9d75eff13d3e2676dfaa19b3247c06a4c"
+    },
+    {
+      "address": "0xb200000000000000000000d9b4bfbc70f8929c64",
+      "name": "B20 Logo Test",
+      "symbol": "B20TEST",
+      "revision": 10,
+      "metadataSource": "onchain-contractURI",
+      "logoSha256": "36a709228ab90e0010e60548b053f6a9d75eff13d3e2676dfaa19b3247c06a4c"
+    },
+    {
+      "address": "0xb200000000000000000000d9dd42d58a424b0f35",
+      "name": "test token",
+      "symbol": "TEST",
+      "revision": 11,
+      "metadataSource": "onchain-contractURI",
+      "logoSha256": "c2c4eb75479e27ff222cd5e4feeeed9dec13074a3d376892612cda4d9e05d6bd"
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "checkedAt": "2026-09-10T21:25:52.654Z",
+  "chainId": 8453,
+  "address": "0xb200000000000000000000D9B4BfBC70F8929C64",
+  "name": "B20 Logo Test",
+  "publication": {
+    "metadataMatches": true,
+    "tokenListMatches": true,
+    "logo": {
+      "url": "https://b20launcher.rakibhq.xyz/api/tokens/0xb200000000000000000000D9B4BfBC70F8929C64/logo",
+      "httpStatus": 200,
+      "contentType": "image/png",
+      "bytes": 4565,
+      "sha256": "36a709228ab90e0010e60548b053f6a9d75eff13d3e2676dfaa19b3247c06a4c",
+      "state": "exact_logo_match"
+    }
+  },
+  "consumers": {
+    "dexscreener": {
+      "endpoint": "https://api.dexscreener.com/token-pairs/v1/base/0xb200000000000000000000D9B4BfBC70F8929C64",
+      "httpStatus": 200,
+      "state": "no_indexed_pair",
+      "pairCount": 0,
+      "imageUrls": [],
+      "images": []
+    },
+    "geckoterminal": {
+      "endpoint": "https://api.geckoterminal.com/api/v2/networks/base/tokens/0xb200000000000000000000D9B4BfBC70F8929C64/info",
+      "httpStatus": 404,
+      "state": "not_indexed",
+      "imageUrls": [],
+      "images": []
+    },
+    "blockscout": {
+      "endpoint": "https://base.blockscout.com/api/v2/tokens/0xb200000000000000000000D9B4BfBC70F8929C64",
+      "httpStatus": 200,
+      "state": "logo_missing",
+      "imageUrls": [],
+      "images": []
+    }
+  },
+  "exactLogoObservedInAllCheckedApis": false,
+  "manualChecksRequired": [
+    "Uniswap, BaseScan, and the actual wallet UI are not covered by these APIs.",
+    "Provider-resized or recompressed images require visual comparison; a different hash is not automatically a wrong logo.",
+    "An API image is evidence of ingestion for this address, not proof of automatic ingestion for future launches."
+  ]
+}

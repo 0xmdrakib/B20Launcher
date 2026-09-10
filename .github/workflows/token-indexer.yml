@@ -1,0 +1,44 @@
+name: Token metadata indexer
+
+on:
+  schedule:
+    - cron: '2-59/5 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: token-metadata-indexer
+  cancel-in-progress: false
+
+jobs:
+  index:
+    if: github.repository == '0xmdrakib/B20Launcher' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      id-token: write
+    steps:
+      - name: Authenticate and advance durable jobs
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const endpoint = 'https://b20launcher.rakibhq.xyz/api/internal/token-indexer';
+          const requestUrl = new URL(process.env.ACTIONS_ID_TOKEN_REQUEST_URL);
+          requestUrl.searchParams.set('audience', endpoint);
+          const identity = await fetch(requestUrl, {
+            headers: { Authorization: `Bearer ${process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN}` },
+            signal: AbortSignal.timeout(15000), redirect: 'error'
+          });
+          if (!identity.ok) throw new Error(`GitHub identity request failed (${identity.status})`);
+          const { value: token } = await identity.json();
+          console.log(`::add-mask::${token}`);
+          const result = await fetch(endpoint, {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: AbortSignal.timeout(240000), redirect: 'error'
+          });
+          if (!result.ok) throw new Error(`Indexer request failed (${result.status})`);
+          const summary = await result.json();
+          console.log(JSON.stringify(summary));
+          if (summary.stalled > 0) throw new Error('Repeated verification failures need attention; durable jobs will continue retrying.');
+          NODE

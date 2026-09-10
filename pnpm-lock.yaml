@@ -59,6 +59,9 @@ importers:
       ipfs-only-hash:
         specifier: ^4.0.0
         version: 4.0.0
+      jose:
+        specifier: ^6.2.4
+        version: 6.2.4
       multer:
         specifier: ^2.0.2
         version: 2.2.0

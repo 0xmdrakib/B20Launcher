@@ -5,6 +5,7 @@ import helmet from "helmet";
 import pinoHttp from "pino-http";
 
 import { config } from "./config.js";
+import { runTokenIndexer } from "./services/token-indexer.js";
 import { agentsRouter } from "./routes/agents.js";
 import { b20Router } from "./routes/b20.js";
 import { metadataRouter } from "./routes/metadata.js";
@@ -63,6 +64,10 @@ async function start() {
     });
   }, 5 * 60 * 1000);
   cleanupTimer.unref();
+  const indexerTimer = setInterval(() => {
+    void runTokenIndexer().catch(() => console.error("Token indexer run failed; durable jobs will retry."));
+  }, config.INDEXER_INTERVAL_SECONDS * 1000);
+  indexerTimer.unref();
 
   app.listen(config.API_PORT, () => {
     console.log(`B20 API listening on http://localhost:${config.API_PORT}`);

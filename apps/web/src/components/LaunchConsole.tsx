@@ -31,7 +31,7 @@ import {
 
 import { ZERO_ADDRESS, type LaunchDraftInput, type UnsignedLaunchTransaction } from "@base-b20/b20";
 
-import { API_URL, commitMetadata, prepareMetadata, quoteLaunch, type PreparedMetadataResponse, type QuoteResponse } from "../lib/api";
+import { API_URL, commitMetadata, prepareMetadata, publicationChallenge, publishMetadata, quoteLaunch, type PreparedMetadataResponse, type QuoteResponse } from "../lib/api";
 import {
   initialWorkflowState,
   launchWorkflowReducer,
@@ -177,6 +177,7 @@ export function LaunchConsole() {
   const [touched, setTouched] = useState<Partial<Record<FieldKey, boolean>>>({});
   const [mintAmountManuallyEdited, setMintAmountManuallyEdited] = useState(false);
   const requestControllers = useRef<Set<AbortController>>(new Set());
+  const publicationAttempted = useRef(false);
   const epochRef = useRef(initialWorkflowState.epoch);
 
   const { address } = useAccount();
@@ -186,7 +187,7 @@ export function LaunchConsole() {
   const publicClient = usePublicClient({ chainId: base.id });
 
   const phase = workflow.phase;
-  const busy = phase === "stagingMetadata" || phase === "buildingTransaction" || phase === "awaitingWallet" || phase === "confirming" || phase === "publishingMetadata";
+  const busy = phase === "stagingMetadata" || phase === "buildingTransaction" || phase === "awaitingWallet" || phase === "prepublishing" || phase === "confirming" || phase === "publishingMetadata";
   const error = workflow.error ?? "";
   const success = notice;
 
@@ -417,6 +418,8 @@ export function LaunchConsole() {
   }, [admin, form, prepared?.contract.uri]);
 
   function invalidatePreparedAndQuote() {
+    if (publicationAttempted.current || prepared?.storage.status !== "staged") setPrepared(null);
+    publicationAttempted.current = false;
     requestControllers.current.forEach((controller) => controller.abort());
     requestControllers.current.clear();
     dispatchWorkflow({ type: "EDIT" });
@@ -511,8 +514,9 @@ export function LaunchConsole() {
       const result = await prepareMetadata(body, { signal: controller.signal });
       if (!isCurrentEpoch(epoch)) return;
       setPrepared(result);
+      publicationAttempted.current = false;
       dispatchWorkflow({ type: "METADATA_STAGED" });
-      setSuccess("Metadata is staged with deterministic CIDs. Lighthouse publication happens only after launch submission.");
+      setSuccess("Your logo and token profile are ready for review.");
       setStep(1);
     } catch (err) {
       if (controller.signal.aborted || !isCurrentEpoch(epoch)) return;
@@ -647,6 +651,28 @@ export function LaunchConsole() {
     setSuccess("");
     try {
       if (chainId !== transaction.chainId) await switchChainAsync({ chainId: transaction.chainId });
+      if (!prepared?.stageToken) throw new Error("Prepare your logo again before launching.");
+      const approval = { stageId: prepared.stageId, stageToken: prepared.stageToken, idempotencyKey: transaction.idempotencyKey, account: address };
+      if (prepared.storage.status !== "ready") {
+        const challenge = await publicationChallenge(approval, { signal: controller.signal });
+        if (!isCurrentEpoch(epoch)) return;
+        setNotice("Approve your public token profile in your wallet. This signature has no gas fee.");
+        const signature = await walletClient.signMessage({ account: address, message: challenge.message });
+        if (!isCurrentEpoch(epoch)) return;
+        dispatchWorkflow({ type: "PREPUBLISH" });
+        publicationAttempted.current = true;
+        const ready = await publishMetadata({ ...approval, deadline: challenge.deadline, signature }, { signal: controller.signal });
+        if (!isCurrentEpoch(epoch)) return;
+        if (!ready.storage.verified || ready.storage.status !== "ready") throw new Error("Your logo is not available yet. Retry before launching.");
+        setPrepared({ ...ready, stageToken: prepared.stageToken });
+      }
+      if (!isCurrentEpoch(epoch)) return;
+      dispatchWorkflow({ type: "AWAIT_WALLET" });
+      const finalIssue = validateUnsignedLaunchTransaction(transaction, {
+        expectedChainId: 8453, quoteFingerprint, currentFingerprint
+      });
+      if (finalIssue) throw new Error(finalIssue);
+      setNotice("Your logo is public and verified. Confirm the launch transaction in your wallet.");
       const txHash = await walletClient.sendTransaction({
         account: address,
         chain: base,
@@ -663,7 +689,7 @@ export function LaunchConsole() {
       const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, confirmations: 1, timeout: 120_000 });
       if (!isCurrentEpoch(epoch)) return;
       if (receipt.status !== "success") {
-        throw new Error("The Base transaction reverted. Nothing was published to Lighthouse.");
+        throw new Error("The Base transaction reverted. Your token was not created.");
       }
       setReceiptConfirmed(true);
       if (!prepared?.stageToken) throw new Error("Metadata stage is missing. Re-prepare metadata before retrying.");
@@ -696,7 +722,7 @@ export function LaunchConsole() {
       const code = typeof err === "object" && err && "code" in err ? (err as { code?: number }).code : undefined;
       const message = err instanceof Error ? err.message : "";
       const timedOut = /timeout|timed out/i.test(message);
-      setError(code === 4001 ? "Wallet signing was cancelled. Your draft is unchanged." : timedOut ? "The transaction was submitted, but Base receipt confirmation timed out. Metadata was not published." : message || "Transaction confirmation or metadata publication failed. You can retry safely.");
+      setError(code === 4001 ? "Wallet signing was cancelled. You can retry this launch." : timedOut ? "The request timed out. If you submitted the transaction, the server will check its confirmation automatically." : message || "Launch confirmation needs another check. You can retry safely.");
     } finally {
       releaseController(controller);
     }
@@ -736,7 +762,7 @@ export function LaunchConsole() {
     try {
       const receipt = await publicClient.waitForTransactionReceipt({ hash: hash as Hex, confirmations: 1, timeout: 120_000 });
       if (!isCurrentEpoch(epoch)) return;
-      if (receipt.status !== "success") throw new Error("The submitted Base transaction reverted. Metadata was not published.");
+      if (receipt.status !== "success") throw new Error("The submitted Base transaction reverted. Your token was not created.");
       setReceiptConfirmed(true);
       dispatchWorkflow({ type: "SUBMITTED", txHash: hash });
       setSuccess("Base receipt confirmed. Retry metadata publication when ready.");
@@ -913,7 +939,7 @@ export function LaunchConsole() {
               {step > 0 && step < 2 ? <button className="button primary" onClick={handleEconomicsContinue} disabled={busy}>Continue <ArrowRight size={16} /></button> : null}
               {step === 2 ? <button className="button primary" onClick={handleQuote} disabled={phase === "buildingTransaction"}><Zap size={16} />{phase === "buildingTransaction" ? "Building transaction" : "Build launch transaction"}</button> : null}
               {step === 3 && !quote ? <button className="button primary" onClick={handleQuote} disabled={phase === "buildingTransaction"}><Zap size={16} />{phase === "buildingTransaction" ? "Building transaction" : "Build transaction"}</button> : null}
-              {step === 3 && quote && !hash ? <button className="button primary launch" onClick={handleSend} disabled={busy}><Rocket size={16} />{phase === "awaitingWallet" ? "Confirm in wallet" : phase === "confirming" ? "Confirming on Base" : phase === "publishingMetadata" ? "Publishing metadata" : "Sign & launch on Base"}</button> : null}
+              {step === 3 && quote && !hash ? <button className="button primary launch" onClick={handleSend} disabled={busy}><Rocket size={16} />{phase === "awaitingWallet" ? "Confirm in wallet" : phase === "prepublishing" ? "Verifying your logo" : phase === "confirming" ? "Confirming on Base" : phase === "publishingMetadata" ? "Finishing launch" : "Sign & launch on Base"}</button> : null}
             </div>
           </footer>
         </section>

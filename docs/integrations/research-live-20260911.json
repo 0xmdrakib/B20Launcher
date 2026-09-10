@@ -1,0 +1,57 @@
+{
+  "observedAtUtc": "2026-09-10T21:25:46.2163688Z",
+  "chainId": 8453,
+  "readOnly": true,
+  "clankerSample": {
+    "interpretation": "An image URL exists without a CoinGecko coin ID. This does not establish who submitted metadata, visual equality, or universal automatic coverage.",
+    "name": "Besman",
+    "geckoTerminal": {
+      "url": "https://api.geckoterminal.com/api/v2/networks/base/tokens/0x2e5f4a60ffc6C8aeD22ec8909Ac9d6A5803D5B07/info",
+      "attributes": {
+        "address": "0x2e5f4a60ffc6c8aed22ec8909ac9d6a5803d5b07",
+        "name": "Besman",
+        "symbol": "Besman",
+        "image_url": "https://assets.geckoterminal.com/t0i2okvaq4mcilj45hvbpniwhgrw",
+        "coingecko_coin_id": null
+      }
+    },
+    "deployedAt": "2026-09-10T21:19:45Z",
+    "discoveredVia": "https://www.clanker.world/api/tokens?chainId=8453&limit=1&sort=desc&sortBy=deployed-at&includeMarket=true",
+    "clankerImage": "https://imagedelivery.net/BXluQx4ige9GuW0Ia56BHw/2070fe30-6e4d-4b11-260b-98e371939700/original",
+    "address": "0x2e5f4a60ffc6C8aeD22ec8909Ac9d6A5803D5B07"
+  },
+  "b20Catalogue": {
+    "count": 3,
+    "url": "https://b20launcher.rakibhq.xyz/api/tokens?limit=100",
+    "tokens": [
+      {
+        "address": "0xB200000000000000000000aAfB51E3727b78856B",
+        "name": "B20 Logo Test 2",
+        "symbol": "B20TEST",
+        "contractURI": "ipfs://bafybeiejycpks3lvl45lsk5abisbn3tuujc3mufnztfpvcdbomoyl222xm",
+        "logoURI": "https://protective-walrus-h5noy.lighthouseweb3.xyz/ipfs/bafybeiexqpn5tbibpp23cqlp6vpwcw3nlox4euockfy2fc7i4kmf4kp2tu",
+        "publishedAt": "2026-09-08T20:41:44.021Z",
+        "metadataSource": "confirmed-launch"
+      },
+      {
+        "address": "0xb200000000000000000000D9B4BfBC70F8929C64",
+        "name": "B20 Logo Test",
+        "symbol": "B20TEST",
+        "contractURI": "ipfs://bafybeiatxgg7g6e5sgimetjt2sxnq3i7ly7shntdfckhakz4kfyqs2qfii",
+        "logoURI": "https://protective-walrus-h5noy.lighthouseweb3.xyz/ipfs/bafybeiexqpn5tbibpp23cqlp6vpwcw3nlox4euockfy2fc7i4kmf4kp2tu",
+        "publishedAt": "2026-09-08T20:24:23.157Z",
+        "metadataSource": "confirmed-launch"
+      },
+      {
+        "address": "0xB200000000000000000000d9Dd42d58A424b0F35",
+        "name": "test token",
+        "symbol": "TEST",
+        "contractURI": "ipfs://bafybeifzowrfv47sk6ar3ddnvpqdiz6qmkgkn3vaqkklygoxwom57tbguu",
+        "logoURI": "https://protective-walrus-h5noy.lighthouseweb3.xyz/ipfs/bafybeicqmqpyybtmtlvrwfi5xrbvxupp6sqqrqpihhqvlz7twv2yar5vwe",
+        "publishedAt": "2026-07-25T18:50:06.392Z",
+        "metadataSource": "confirmed-launch"
+      }
+    ],
+    "nextCursor": null
+  }
+}

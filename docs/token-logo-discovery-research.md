@@ -1,5 +1,7 @@
 # Token logo discovery: launchpad comparison
 
+For the current implementation audit, live observations, consumer-source distinctions and recommended architecture, see the [September 11 deep research](automatic-token-metadata-research.md). The implementation findings below describe the earlier baseline.
+
 Research date: 2026-09-09. Scope: public documentation, read-only API checks, and the B20Launcher implementation. No transactions, listing submissions, or provider configuration changes were made.
 
 The earlier claim that every launched token must be manually submitted to CoinGecko was too broad. Launchpads can distribute token information through platform APIs, indexed deployment events, and integrations with consumer platforms. B20Launcher currently completes the IPFS publication step but does not implement this distribution path. The image format itself is consistent with an established Base launchpad's metadata standard.

@@ -7,6 +7,9 @@ import { z } from "zod";
 import { config } from "../config.js";
 import { ApiError } from "../lib/errors.js";
 import { store, type PublishedTokenSource } from "./store.js";
+import { pipelineStore } from "./pipeline-store.js";
+import { readIpfs } from "./ipfs-reader.js";
+import sharp from "sharp";
 
 const cidSchema = z.string().regex(/^bafybei[a-z2-7]{52}$/);
 const publishedSchema = z.object({
@@ -66,19 +69,37 @@ export function projectPublishedToken(source: PublishedTokenSource) {
   };
 }
 
-export type PublicToken = ReturnType<typeof projectPublishedToken>;
+export type PublicToken = Omit<ReturnType<typeof projectPublishedToken>, "metadataSource"> & {
+  metadataSource: "confirmed-launch" | "onchain-contractURI";
+  revision?: number; updatedAt?: string;
+};
+
+async function currentToken(source: PublishedTokenSource): Promise<PublicToken> {
+  const original = projectPublishedToken(source);
+  const snapshot = await pipelineStore.getSnapshot(original.address);
+  return snapshot ? { ...snapshot.document, revision: snapshot.revision, updatedAt: snapshot.updatedAt } as PublicToken : original;
+}
+
+async function currentTokens(sources: PublishedTokenSource[]): Promise<PublicToken[]> {
+  const originals = sources.map(projectPublishedToken);
+  const snapshots = await pipelineStore.getSnapshots(originals.map(token => token.address));
+  return originals.map(original => {
+    const snapshot = snapshots.get(original.address.toLowerCase());
+    return snapshot ? { ...snapshot.document, revision: snapshot.revision, updatedAt: snapshot.updatedAt } as PublicToken : original;
+  });
+}
 
 export async function getPublicToken(address: string) {
   addressSchema.parse(address);
   const [source] = await store.getPublishedTokens({ address, limit: 1 });
   if (!source) throw new ApiError("Published token not found.", 404);
-  return projectPublishedToken(source);
+  return currentToken(source);
 }
 
 export async function listPublicTokens(input: { limit?: string | number; after?: string } = {}) {
   const { limit, after } = pageSchema.parse(input);
   const sources = await store.getPublishedTokens({ limit: limit + 1, ...(after ? { after } : {}) });
-  const tokens = sources.slice(0, limit).map(projectPublishedToken);
+  const tokens = await currentTokens(sources.slice(0, limit));
   return {
     chainId: config.BASE_CHAIN_ID,
     tokens,
@@ -87,7 +108,7 @@ export async function listPublicTokens(input: { limit?: string | number; after?:
 }
 
 export async function recentPublicTokens() {
-  const tokens = (await store.getPublishedTokens()).map(projectPublishedToken);
+  const tokens = await currentTokens(await store.getPublishedTokens());
   return {
     source: "confirmed-launches",
     rows: tokens.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)).slice(0, 20)
@@ -95,7 +116,7 @@ export async function recentPublicTokens() {
 }
 
 export async function publicTokenList() {
-  const records = (await store.getPublishedTokens()).map(projectPublishedToken);
+  const records = await currentTokens(await store.getPublishedTokens({ limit: 10_001 }));
   if (!records.length) throw new ApiError("No published tokens yet.", 404);
   if (records.length > 10_000) throw new ApiError("Use the paginated /api/tokens feed for this catalogue.", 413);
   const tokens = records.map(({ chainId, address, name, symbol, decimals, logoURI }) => {
@@ -106,11 +127,11 @@ export async function publicTokenList() {
       ...(listName !== name || listSymbol !== symbol ? { extensions: { originalName: name, originalSymbol: symbol } } : {})
     };
   });
-  const timestamp = records.reduce((latest, token) => token.publishedAt > latest ? token.publishedAt : latest, "1970-01-01T00:00:00.000Z");
+  const timestamp = records.reduce((latest, token) => (token.updatedAt ?? token.publishedAt) > latest ? (token.updatedAt ?? token.publishedAt) : latest, "1970-01-01T00:00:00.000Z");
   return {
     name: "B20 Launcher",
     timestamp,
-    version: { major: 1, minor: tokens.length, patch: 0 },
+    version: await pipelineStore.tokenListVersion(tokens),
     keywords: ["base", "b20"],
     tokens
   };
@@ -119,30 +140,20 @@ export async function publicTokenList() {
 export async function getPublicLogo(address: string) {
   const token = await getPublicToken(address);
   try {
-    const response = await fetch(token.logoURI, {
-      redirect: "error",
-      signal: AbortSignal.timeout(10_000)
-    });
-    if (!response.ok || !response.headers.get("content-type")?.toLowerCase().startsWith("image/png")) {
-      throw new Error("Logo unavailable");
-    }
-    if (Number(response.headers.get("content-length") ?? 0) > 1_000_000 || !response.body) {
-      throw new Error("Invalid logo response");
-    }
-    const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
-    let size = 0;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      if (size > 1_000_000) { await reader.cancel(); throw new Error("Logo too large"); }
-      chunks.push(value);
-    }
-    const body = Buffer.concat(chunks);
-    if (createHash("sha256").update(body).digest("hex") !== token.logoSha256) throw new Error("Logo hash mismatch");
-    return { body, etag: `"${token.logoSha256}"` };
+    const image = await readIpfs(token.imageIpfs, 1_000_000, token.logoSha256);
+    const format = (await sharp(image.body, { limitInputPixels: 16_777_216 }).metadata()).format;
+    if (!["png", "jpeg", "webp"].includes(format ?? "")) throw new Error("Unsupported logo format");
+    const body = format === "png" ? image.body : await sharp(image.body, { limitInputPixels: 16_777_216 }).resize(512, 512, { fit: "contain", background: "#00000000" }).png().toBuffer();
+    return { body, etag: `"${createHash("sha256").update(body).digest("hex")}"` };
   } catch {
     throw new ApiError("Token logo is temporarily unavailable. Retry shortly.", 502);
   }
+}
+
+export async function publicTokenChanges(input: { after?: string; limit?: string } = {}) {
+  const after = z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).default(0).parse(input.after);
+  const limit = z.coerce.number().int().min(1).max(100).default(50).parse(input.limit);
+  const changes = await pipelineStore.listChanges(after, limit + 1);
+  const page = changes.slice(0, limit);
+  return { chainId: config.BASE_CHAIN_ID, changes: page, nextCursor: page.at(-1)?.revision ?? after, hasMore: changes.length > limit };
 }

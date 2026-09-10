@@ -2,6 +2,7 @@ import postgres, { type Sql } from "postgres";
 import type { Address, Hex } from "viem";
 
 import { config } from "../config.js";
+import { ApiError } from "../lib/errors.js";
 
 const PUBLISHING_RETRY_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -61,6 +62,8 @@ export interface Store {
     binding: NonNullable<MetadataStageRecord["binding"]>
   ): Promise<void>;
   markMetadataPublishing(stageId: string, txHash: Hex): Promise<void>;
+  armMetadataPublication(stageId: string, idempotencyKey: string, attributedData: Hex): Promise<boolean>;
+  savePublishedMetadata(stageId: string, prepared: unknown): Promise<void>;
   completeMetadataStage(stageId: string, prepared: unknown, txHash: Hex): Promise<void>;
   deleteMetadataStage(stageId: string): Promise<void>;
   cleanupMetadataStages(): Promise<number>;
@@ -117,7 +120,21 @@ class MemoryStore implements Store {
   async bindMetadataStage(stageId: string, binding: NonNullable<MetadataStageRecord["binding"]>) {
     const stage = this.metadataStages.get(stageId);
     if (!stage) return;
+    if (!["staged", "bound"].includes(stage.status)) throw new ApiError("This launch is locked for publication. Prepare a new logo stage to edit it.", 409);
     this.metadataStages.set(stageId, { ...stage, binding, status: "bound" });
+  }
+
+  async armMetadataPublication(stageId: string, idempotencyKey: string, attributedData: Hex) {
+    const stage = this.metadataStages.get(stageId);
+    if (!stage || stage.binding?.idempotencyKey !== idempotencyKey || stage.binding.attributedData.toLowerCase() !== attributedData.toLowerCase()
+      || Date.parse(stage.expiresAt) <= Date.now() || !["bound", "publishing"].includes(stage.status)) return false;
+    this.metadataStages.set(stageId, { ...stage, status: "publishing", expiresAt: new Date(Date.now() + 30 * 86400_000).toISOString() });
+    return true;
+  }
+
+  async savePublishedMetadata(stageId: string, prepared: unknown) {
+    const stage = this.metadataStages.get(stageId);
+    if (stage?.status === "publishing") this.metadataStages.set(stageId, { ...stage, prepared });
   }
 
   async markMetadataPublishing(stageId: string, txHash: Hex) {
@@ -138,6 +155,7 @@ class MemoryStore implements Store {
     const { logoBody: _logoBody, contractBody: _contractBody, ...retained } = stage;
     this.metadataStages.set(stageId, {
       ...retained,
+      secretHash: "consumed",
       prepared,
       txHash,
       status: "committed"
@@ -177,7 +195,7 @@ class MemoryStore implements Store {
   }
 }
 
-class PostgresStore implements Store {
+export class PostgresStore implements Store {
   readonly kind = "postgres" as const;
   private readonly sql: Sql;
 
@@ -187,6 +205,7 @@ class PostgresStore implements Store {
       idle_timeout: 20,
       connect_timeout: 10,
       prepare: false,
+      onnotice: () => {},
       ssl: "require"
     });
   }
@@ -344,12 +363,28 @@ class PostgresStore implements Store {
   }
 
   async bindMetadataStage(stageId: string, binding: NonNullable<MetadataStageRecord["binding"]>) {
-    await this.sql`
+    const rows = await this.sql`
       UPDATE b20_metadata_stages
       SET idempotency_key = ${binding.idempotencyKey}, tx_to = ${binding.to},
           attributed_data = ${binding.attributedData}, status = 'bound', updated_at = NOW()
       WHERE stage_id = ${stageId} AND status IN ('staged', 'bound')
+      RETURNING stage_id
     `;
+    if (!rows.length) throw new ApiError("This launch is locked for publication. Prepare a new logo stage to edit it.", 409);
+  }
+  async close() { await this.sql.end(); }
+
+  async armMetadataPublication(stageId: string, idempotencyKey: string, attributedData: Hex) {
+    const rows = await this.sql`UPDATE b20_metadata_stages SET status = 'publishing',
+      expires_at = GREATEST(expires_at, NOW() + INTERVAL '30 days'), updated_at = NOW()
+      WHERE stage_id = ${stageId} AND idempotency_key = ${idempotencyKey} AND LOWER(attributed_data) = ${attributedData.toLowerCase()}
+        AND expires_at > NOW() AND status IN ('bound', 'publishing') RETURNING stage_id`;
+    return rows.length === 1;
+  }
+
+  async savePublishedMetadata(stageId: string, prepared: unknown) {
+    await this.sql`UPDATE b20_metadata_stages SET prepared = ${this.sql.json(prepared as never)}, updated_at = NOW()
+      WHERE stage_id = ${stageId} AND status = 'publishing'`;
   }
 
   async markMetadataPublishing(stageId: string, txHash: Hex) {

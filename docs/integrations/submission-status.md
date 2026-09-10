@@ -1,18 +1,20 @@
 # Consumer integration submissions
 
-Updated: 2026-09-09 (Asia/Dhaka). All five inquiries were submitted with the platform owner's authorization and supplied contact details. Private correspondence and email-verification links are excluded from this repository.
+Updated: 2026-09-11 (Asia/Dhaka). All five inquiries were submitted with the platform owner's authorization and supplied contact details. Private correspondence and email-verification links are excluded from this repository.
 
 These requests ask consumers to ingest B20 Launcher metadata for future tokens. A support receipt establishes delivery, not acceptance or working automatic logo ingestion. [Acceptance checks](onboarding-requests.md#acceptance-and-follow-through) still apply.
 
 | Consumer | Delivery status | Evidence | Next dependency |
 | --- | --- | --- | --- |
 | GeckoTerminal / CoinGecko | Submitted; email verified | Ticket **#137396**; verification page confirmed the request was sent; receipt email received | Team response and source-onboarding requirements |
-| Uniswap Labs | Submitted | Ticket **#256149**; form displayed successful submission; selected "No, I need help" to keep the request open | Token-data team response |
+| Uniswap Labs | Support inquiry and platform application submitted | Ticket **#256149**; separate official launchpad application displayed **Submission successful!** on September 11 | Confirmation of Base data-source scope and requirements; Launches placement remains separate |
 | BaseScan | Submitted | Form displayed successful delivery; receipt email confirmed ticket **#846900** | Confirmation whether platform/bulk integration is supported |
 | MetaMask | Submitted to human support queue | Technical Support ticket **#131700638**; ticket detail showed "Submitted" and "We'll pick this up soon" | Support/token-data team response |
 | DEX Screener | Submitted | Official [partnership form](https://forms.gle/TLbPqn3owY5zvGxh9) displayed "Your response has been recorded"; no ticket number was displayed | Partnership/integration team response |
 
 ## Submission details
+
+On September 11, the owner-approved [Uniswap launchpad application](https://share.hsforms.com/1HxXolMxdSsW-4iuTK802jws8pgg) was submitted with the platform logo, Base router, public documentation, feed URLs and representative test transaction. It explicitly states that the current router does not create pools and does not claim the published volume threshold. The receipt confirms submission only. Contact details and consent records remain private. See the [automatic metadata research](../automatic-token-metadata-research.md) for the recommended engineering path.
 
 GeckoTerminal and Uniswap received their [prepared technical requests](onboarding-requests.md). Uniswap's form category was **Uniswap Web App**, issue **Explore page**, network **Base**. Its required wallet and transaction fields identify the representative public test launch; the request explicitly concerns metadata ingestion.
 

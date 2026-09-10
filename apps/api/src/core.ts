@@ -7,8 +7,11 @@ export {
   commitMetadata,
   MAX_LOGO_BYTES,
   prepareMetadata,
+  publicationChallenge,
+  publishMetadata,
   type UploadedLogo
 } from "./services/ipfs.js";
 export { getAgentManifest } from "./services/manifest.js";
-export { getPublicToken, listPublicTokens, recentPublicTokens, publicTokenList, getPublicLogo, type PublicToken } from "./services/public-tokens.js";
+export { getPublicToken, listPublicTokens, recentPublicTokens, publicTokenList, publicTokenChanges, getPublicLogo, type PublicToken } from "./services/public-tokens.js";
+export { authorizeIndexer, runTokenIndexer } from "./services/token-indexer.js";
 export { ensureStoreReady, store, type RateLimitResult } from "./services/store.js";

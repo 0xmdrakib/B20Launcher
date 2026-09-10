@@ -5,6 +5,7 @@ B20 Launcher exposes confirmed launches for wallet, explorer, DEX, and indexer i
 | Endpoint | Response |
 | --- | --- |
 | `GET /api/tokens?limit=100&after=<address>` | Address-ordered catalogue with `tokens` and `nextCursor`; limit 1–500. Omit `after` for the first page. |
+| `GET /api/tokens/changes?after=0&limit=50` | Append-only verified changes with numeric `revision`, `nextCursor`, and `hasMore`; limit 1–100. Persist `nextCursor` between polls. |
 | `GET /api/tokens/<address>` | Name, symbol, decimals, HTTPS image, IPFS image, contract URI, public metadata, and deployment transaction. |
 | `GET /api/tokens/<address>/metadata` | Published EIP-7572 metadata JSON. |
 | `GET /api/tokens/<address>/logo` | Verified PNG bytes, with an ETag. |
@@ -30,9 +31,9 @@ const token = await response.json();
 
 The catalogue projects existing committed metadata stages joined to their launch records. Older completed launches appear automatically. Staged, merely quoted, reverted, and unpublished launches are excluded. Name, symbol, decimals, and address are derived from the bound transaction calldata and checked against the staged contract URI and deterministic address. A later overwritten quote payload cannot replace this identity.
 
-Publication still requires the private stage credentials, the bound transaction, and a successful Base receipt before Lighthouse uploads. Public DTOs contain no stage identifiers, credentials, calldata, or server keys. The logo endpoint fetches only the configured HTTPS gateway plus a validated CID, refuses redirects, limits response size, and verifies the stored SHA-256 before serving bytes.
+Before a new launch transaction, publication requires private stage credentials, a bound transaction, and a wallet-signed publication intent. Both IPFS files are uploaded and retrieved with byte verification before the frontend broadcasts. Public catalogue inclusion still requires the matching successful Base receipt. Public DTOs contain no stage identifiers, credentials, signatures, calldata, or server keys. The logo endpoint resolves only through the configured HTTPS IPFS gateway and fixed `ipfs.io` fallback, refuses redirects, limits response size, and verifies SHA-256 before serving raster bytes.
 
-Records are labelled `metadataSource: "confirmed-launch"`. They represent the metadata published through this launch flow. Later metadata-admin changes made outside this platform are not yet reconciled into this catalogue; consumers needing those updates must follow the contract's current `contractURI` and update events.
+The immediate launch snapshot is labelled `metadataSource: "confirmed-launch"`. After safe-block reconciliation, records use `metadataSource: "onchain-contractURI"`, `revision`, and `updatedAt`. Names, symbols and decimals follow the current native token; the JSON is read from its current `contractURI`. Later changes appear in `/api/tokens/changes`, including changes to previously indexed addresses. `updatedAt` is the last content change, not a promise of uninterrupted gateway availability. Unsupported non-IPFS profile/image locations or failed verification retain the last verified snapshot and generate retries.
 
 Router: `0x24c73392d269ce652203a1d1155422a006809ef1`.
 
@@ -46,11 +47,13 @@ event PlatformB20Launched(
 );
 ```
 
-The receipt precedes IPFS publication. Indexers reading the event directly should retry unavailable URIs; catalogue entries become visible after successful publication. No new on-chain transaction is needed to expose an existing committed launch through these endpoints.
+In the new launch flow, IPFS publication and verification precede the transaction. Discovery is persisted before the browser may broadcast, so disconnecting does not lose the indexing job. Indexers should still retry transient gateway failures. Existing completed launches are backfilled without another onchain transaction.
 
 ## Token Lists and wallet imports
 
-The list uses the [Token Lists specification](https://github.com/Uniswap/token-lists). The metadata API preserves original labels. List display labels longer than the specification permits are shortened to 60 characters for names and 20 for symbols, with originals retained under `extensions`. The specification permits up to 10,000 entries; beyond that the single-list endpoint returns HTTP 413 and consumers should use the paginated catalogue. Empty catalogues return 404 for the list. The current additive catalogue increments the minor list version with the entry count; future gateway-format changes must bump the list patch version, and removals must bump its major version. ETags also change with the response contents.
+The list uses the [Token Lists specification](https://github.com/Uniswap/token-lists). The metadata API preserves original labels. List display labels longer than the specification permits are shortened to 60 characters for names and 20 for symbols, with originals retained under `extensions`. The specification permits up to 10,000 entries; beyond that the single-list endpoint returns HTTP 413 and consumers should use the paginated catalogue. Empty catalogues return 404 for the list. Versions persist in Postgres: additions increment minor, metadata edits increment patch, and removals or decimal changes increment major. Unchanged lists keep their version and ETag.
+
+For a consumer starting a continuous sync, consume the changes feed from cursor `0` and retain `nextCursor` after processing each page. Repeat while `hasMore` is true, then poll using that same cursor. The address cursor on `/api/tokens` is for catalogue pagination, not continuous syncing. Rows expose only verified public token fields.
 
 The user-triggered Add to wallet action calls `wallet_watchAsset` with the published HTTPS image and correct decimals, after checking Base. It does not request a signature or transfer funds. Wallet support varies and the wallet may reject the request, including symbols exceeding its own length limit. [MetaMask guide](https://docs.metamask.io/metamask-connect/evm/guides/metamask-exclusive/display-tokens/), [Base reference](https://docs.base.org/sdks/base-account/reference/core/provider-rpc-methods/wallet_watchAsset).
 

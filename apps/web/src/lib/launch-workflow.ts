@@ -5,6 +5,7 @@ export type WorkflowPhase =
   | "buildingTransaction"
   | "transactionReady"
   | "awaitingWallet"
+  | "prepublishing"
   | "submitted"
   | "confirming"
   | "publishingMetadata"
@@ -35,6 +36,7 @@ export type WorkflowEvent =
   | { type: "BUILD_TRANSACTION" }
   | { type: "TRANSACTION_READY" }
   | { type: "AWAIT_WALLET" }
+  | { type: "PREPUBLISH" }
   | { type: "SUBMITTED"; txHash: string }
   | { type: "CONFIRMING" }
   | { type: "PUBLISH_METADATA"; retryAttempt?: number }
@@ -67,6 +69,8 @@ export function launchWorkflowReducer(state: WorkflowState, event: WorkflowEvent
       return { ...state, phase: "transactionReady", error: undefined };
     case "AWAIT_WALLET":
       return { ...state, phase: "awaitingWallet", error: undefined };
+    case "PREPUBLISH":
+      return { ...state, phase: "prepublishing", error: undefined };
     case "SUBMITTED":
       return { ...state, phase: "submitted", txHash: event.txHash, error: undefined };
     case "CONFIRMING":
