@@ -80,25 +80,39 @@ export async function discoverLaunch(job: PipelineJob) {
   const safe = await client.getBlock({ blockTag: "safe" });
   const fromBlock = BigInt(String(job.data.cursor ?? job.data.fromBlock));
   const cleanupDue = Number(safe.timestamp) * 1000 >= Date.parse(stage.expiresAt) + CLEANUP_GRACE_MS;
-  if (fromBlock > safe.number) {
+  const initialized = await client.readContract({ address: B20_FACTORY_ADDRESS, abi: b20FactoryAbi,
+    functionName: "isB20Initialized", args: [launch.predictedToken as Address], blockNumber: safe.number });
+  if (initialized === false) {
+    // Native initialization is irreversible. A false value at the safe head
+    // proves no launch exists through that block; no historical log scan is
+    // needed for abandoned intents, even after a long scheduler interruption.
     if (cleanupDue && await cleanupAbandonedMetadata(stage.stageId)) await pipelineStore.finish(job, null);
-    else await pipelineStore.finish(job, 30_000);
+    else await pipelineStore.finish(job, 30_000, { ...job.data, cursor: (safe.number + 1n).toString() });
     return;
   }
-  const toBlock = fromBlock + 999n < safe.number ? fromBlock + 999n : safe.number;
+  if (initialized !== true) throw new Error("Native initialization state unavailable");
+  // Locate the first initialized block, then request only that block's logs.
+  // This works with RPC plans restricting eth_getLogs to ten blocks, and costs
+  // logarithmic state reads once per actual launch, not scans for every draft.
+  let low = fromBlock > safe.number ? BigInt(String(job.data.fromBlock)) : fromBlock;
+  let high = safe.number;
+  while (low < high) {
+    const middle = (low + high) / 2n;
+    const exists = await client.readContract({ address: B20_FACTORY_ADDRESS, abi: b20FactoryAbi,
+      functionName: "isB20Initialized", args: [launch.predictedToken as Address], blockNumber: middle });
+    if (exists === true) high = middle;
+    else if (exists === false) low = middle + 1n;
+    else throw new Error("Historical initialization state unavailable");
+  }
   const logs = await client.getLogs({ address: stage.binding.to, event: launchEvent,
-    args: { token: launch.predictedToken as Address }, fromBlock, toBlock, strict: true });
+    args: { token: launch.predictedToken as Address }, fromBlock: low, toBlock: low, strict: true });
   for (const log of logs) {
     if (!log.transactionHash || log.args.contractURI !== stage.contractUri) continue;
     await confirmMetadataStage(stage.stageId, log.transactionHash);
     await pipelineStore.finish(job, null);
     return;
   }
-  if (toBlock === safe.number && cleanupDue && await cleanupAbandonedMetadata(stage.stageId)) {
-    await pipelineStore.finish(job, null);
-    return;
-  }
-  await pipelineStore.finish(job, toBlock < safe.number ? 0 : 30_000, { ...job.data, cursor: (toBlock + 1n).toString() });
+  throw new Error("Initialized token has no matching platform launch event");
 }
 
 async function sourceForJob(job: PipelineJob): Promise<PublishedTokenSource | undefined> {

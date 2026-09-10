@@ -52,18 +52,29 @@ describe("server discovery and metadata reconciliation", () => {
     expect((await getPublicToken(f.tx.predictedToken)).name).toBe("Original");
     jobs.push(`token:${f.tx.predictedToken.toLowerCase()}`);
   });
-  it("advances only a successful bounded scan and retains its cursor across a failed RPC", async () => {
+  it("skips historical logs for uninitialized tokens and retains its cursor across a failed RPC", async () => {
     const f = await fixture();
-    rpc.getLogs.mockResolvedValue([]);
+    rpc.readContract.mockResolvedValue(false);
     await discoverLaunch(f.job);
     const retry = (await pipelineStore.claim(f.id))!;
-    expect(retry.data.cursor).toBe("1100");
-    rpc.getLogs.mockRejectedValue(new Error("RPC unavailable"));
+    expect(retry.data.cursor).toBe("2001");
+    expect(rpc.getLogs).not.toHaveBeenCalled();
+    rpc.readContract.mockRejectedValue(new Error("RPC unavailable"));
     await expect(discoverLaunch(retry)).rejects.toThrow("RPC unavailable");
     await pipelineStore.finish(retry, 0, retry.data, "retry");
     const resumed = (await pipelineStore.claim(f.id))!;
-    expect(resumed.data.cursor).toBe("1100");
+    expect(resumed.data.cursor).toBe("2001");
     await pipelineStore.finish(resumed, null);
+  });
+  it("locates initialization with historical state and queries exactly one block of logs", async () => {
+    const f = await fixture();
+    rpc.readContract.mockImplementation(async ({ blockNumber }) => blockNumber >= 1742n);
+    rpc.getLogs.mockResolvedValue([{ transactionHash: txHash, args: { contractURI: f.prepared.contract.uri } }]);
+    await discoverLaunch(f.job);
+    expect(rpc.getLogs).toHaveBeenCalledWith(expect.objectContaining({ fromBlock: 1742n, toBlock: 1742n }));
+    expect(rpc.readContract.mock.calls.length).toBeLessThanOrEqual(12);
+    expect((await store.getMetadataStage(f.prepared.stageId))!.status).toBe("committed");
+    jobs.push(`token:${f.tx.predictedToken.toLowerCase()}`);
   });
   it("publishes changed onchain identity and profile in the incremental feed", async () => {
     const f = await fixture(true);

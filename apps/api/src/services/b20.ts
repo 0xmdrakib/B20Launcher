@@ -102,8 +102,7 @@ export async function getB20Status(address: Address) {
     isB20Address: isB20Address(address),
     initialized,
     network: {
-      chainId: config.BASE_CHAIN_ID,
-      rpcUrl: config.BASE_RPC_URL
+      chainId: config.BASE_CHAIN_ID
     },
     analytics: {
       transfers24h: null,

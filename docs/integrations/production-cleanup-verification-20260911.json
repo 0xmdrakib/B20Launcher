@@ -1,0 +1,40 @@
+{
+  "checkedAt": "2026-09-10T23:08:18.036Z",
+  "blockchainTransactionsSent": 0,
+  "publication": "ready",
+  "assets": [
+    {
+      "cid": "bafybeidz2w4fjr4fw7vbwm3lyg4onpwmkocgbnrndeq4prfj5wph5g3yii",
+      "sha256": "81e3464139faee1d1bebc73e0f6d45a7fc5784fb4d3e703467b449e76e1f0b7c",
+      "status": 200
+    },
+    {
+      "cid": "bafybeicafxshlmqkrusgg2ssr5cwi4isgggbiatepf7ya7vvldqpfnfe7u",
+      "sha256": "69699bfae0b4df21316fc26b9d47594dc714e4b1f88a74542be64b1ba8e25e4c",
+      "status": 200
+    }
+  ],
+  "cleanup": "verified",
+  "ownedFilesDeleted": 2,
+  "privateBytesCleared": true,
+  "stageCredentialConsumed": true,
+  "discoveryJobRetired": true,
+  "verification": "Simulated expiry only for the new unlaunched fixture, then invoked the normal authenticated worker; annual inventory confirmed deletion.",
+  "confirmedTokenLogos": [
+    {
+      "address": "0xB200000000000000000000aAfB51E3727b78856B",
+      "status": 200,
+      "sha256": "36a709228ab90e0010e60548b053f6a9d75eff13d3e2676dfaa19b3247c06a4c"
+    },
+    {
+      "address": "0xb200000000000000000000D9B4BfBC70F8929C64",
+      "status": 200,
+      "sha256": "36a709228ab90e0010e60548b053f6a9d75eff13d3e2676dfaa19b3247c06a4c"
+    },
+    {
+      "address": "0xB200000000000000000000d9Dd42d58A424b0F35",
+      "status": 200,
+      "sha256": "c2c4eb75479e27ff222cd5e4feeeed9dec13074a3d376892612cda4d9e05d6bd"
+    }
+  ]
+}

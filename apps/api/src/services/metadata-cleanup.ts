@@ -9,7 +9,7 @@ import type { PreparedMetadata } from "./ipfs.js";
 export const CLEANUP_GRACE_MS = 3600_000;
 const client = createPublicClient({ transport: http(config.BASE_RPC_URL, { timeout: 12_000, retryCount: 1 }) });
 
-/** Only called after discovery has scanned through a safe block after expiry. */
+/** Only called after discovery has verified no initialization at a safe block after expiry. */
 export async function cleanupAbandonedMetadata(stageId: string): Promise<boolean> {
   return store.withPublicationLock(async () => {
     const stage = await store.getMetadataStage(stageId);
