@@ -1,0 +1,23 @@
+{
+  "checkedAt": "2026-09-10T22:31:50.044Z",
+  "environment": "production",
+  "wallet": "ephemeral unfunded test account",
+  "publicationState": "ready",
+  "verified": true,
+  "assets": [
+    {
+      "cid": "bafybeibrdnpj3es4a6pkutwipbkycszproxbioau6cw7pk63zohqhgbtx4",
+      "status": 200,
+      "sha256": "c147424a94d6edef012298effa0df5bf59683641b7207d9e8fff9d442de2b570",
+      "bytes": 4571
+    },
+    {
+      "cid": "bafybeihjzkhak66sg43jnz6icpzviqx4y5q6ncxstcjt4tonadubw5frqm",
+      "status": 200,
+      "sha256": "eaaedd8e5e0031425cefcb68ffcf95bea21bd6820a8dc1fe166906fd97acb5c3",
+      "bytes": 460
+    }
+  ],
+  "unlaunchedCatalogueStatus": 404,
+  "blockchainTransactionsSent": 0
+}
