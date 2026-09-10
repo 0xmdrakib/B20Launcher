@@ -39,6 +39,7 @@ const rawConfigSchema = z.object({
   CRON_SECRET: z.string().optional().default(""),
   PUBLICATION_DAILY_LIMIT: z.coerce.number().int().min(1).max(10_000).default(100),
   PUBLICATION_WALLET_DAILY_LIMIT: z.coerce.number().int().min(1).max(1000).default(10),
+  PUBLICATION_PENDING_LIMIT: z.coerce.number().int().min(1).max(10_000).default(200),
   INDEXER_INTERVAL_SECONDS: z.coerce.number().int().min(60).max(86400).default(300),
   CDP_API_KEY_ID: z.string().optional().default(""),
   CDP_API_KEY_SECRET: z.string().optional().default(""),

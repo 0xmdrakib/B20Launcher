@@ -9,7 +9,7 @@ import { buildContractMetadata, type ContractMetadata } from "@base-b20/b20";
 
 import { config } from "../config.js";
 import { ApiError } from "../lib/errors.js";
-import { uploadToLighthouse } from "./lighthouse.js";
+import { stageUploadNames, uploadToLighthouse } from "./lighthouse.js";
 import { store, type MetadataStageRecord } from "./store.js";
 import { readIpfs } from "./ipfs-reader.js";
 import { pipelineStore } from "./pipeline-store.js";
@@ -117,9 +117,9 @@ function committedIpfsObject(
   };
 }
 
-async function uploadBuffer(buffer: Buffer, expected: IpfsObject): Promise<IpfsObject> {
+async function uploadBuffer(buffer: Buffer, expected: IpfsObject, filename: string): Promise<IpfsObject> {
   try {
-    const response = await uploadToLighthouse(buffer, "b20-token-logo.png", requireApiKey());
+    const response = await uploadToLighthouse(buffer, filename, requireApiKey());
     const cid = response.Hash;
     if (cid !== expected.cid) throw new ApiError("Lighthouse logo CID did not match the staged CID.", 502);
     return committedIpfsObject(expected);
@@ -129,9 +129,9 @@ async function uploadBuffer(buffer: Buffer, expected: IpfsObject): Promise<IpfsO
   }
 }
 
-async function uploadJson(body: string, expected: IpfsObject): Promise<IpfsObject> {
+async function uploadJson(body: string, expected: IpfsObject, filename: string): Promise<IpfsObject> {
   try {
-    const response = await uploadToLighthouse(body, "b20-contract-metadata.json", requireApiKey());
+    const response = await uploadToLighthouse(body, filename, requireApiKey());
     const cid = response.Hash;
     if (cid !== expected.cid) throw new ApiError("Lighthouse metadata CID did not match the staged CID.", 502);
     return committedIpfsObject(expected);
@@ -186,11 +186,13 @@ async function normalizeLogo(file?: UploadedLogo): Promise<Buffer> {
   return normalized;
 }
 
-async function getStage(stageId: string): Promise<MetadataStageRecord<PreparedMetadata>> {
+async function getStage(stageId: string, allowExpired = false): Promise<MetadataStageRecord<PreparedMetadata>> {
   const stage = (await store.getMetadataStage(stageId)) as MetadataStageRecord<PreparedMetadata> | undefined;
   if (!stage) throw new ApiError("Metadata stage was not found or has expired.", 404);
-  if (Date.now() >= Date.parse(stage.expiresAt) && stage.status !== "committed") {
-    await store.deleteMetadataStage(stageId);
+  if (stage.cleanupState && !(allowExpired && stage.cleanupState === "pending")) throw new ApiError("This launch expired. Prepare the logo again.", 410);
+  if (!allowExpired && Date.now() >= Date.parse(stage.expiresAt) && stage.status !== "committed") {
+    // Published stages contain the evidence needed to protect live tokens and
+    // clean partial uploads. Only the reconciliation worker may retire them.
     throw new ApiError("Metadata stage has expired. Prepare the logo again.", 410);
   }
   return stage;
@@ -298,7 +300,6 @@ export async function bindMetadataStage(input: {
     throw new ApiError("The metadata stage token is missing or invalid.", 403);
   }
   if (Date.now() >= Date.parse(stage.expiresAt)) {
-    await store.deleteMetadataStage(stage.stageId);
     throw new ApiError("Metadata stage has expired. Prepare the logo again.", 410);
   }
   await store.bindMetadataStage(stage.stageId, {
@@ -310,7 +311,7 @@ export async function bindMetadataStage(input: {
 
 export async function commitMetadata(input: MetadataCommitInput): Promise<PreparedMetadata> {
   const parsed = metadataCommitSchema.parse(input);
-  const stage = await getStage(parsed.stageId);
+  const stage = await getStage(parsed.stageId, true);
   if (stage.status === "committed") {
     if (stage.txHash?.toLowerCase() !== parsed.txHash.toLowerCase() || stage.binding?.idempotencyKey !== parsed.idempotencyKey) throw new ApiError("This stage belongs to a different confirmed launch.", 409);
     return stage.prepared;
@@ -327,7 +328,11 @@ export async function commitMetadata(input: MetadataCommitInput): Promise<Prepar
 // Internal worker entry point. It accepts no unverified transaction or source:
 // the target, exact calldata, and successful Base receipt are checked below.
 export async function confirmMetadataStage(stageId: string, txHash: Hex): Promise<PreparedMetadata> {
-  const stage = await getStage(stageId);
+  return store.withPublicationLock(() => confirmMetadataStageLocked(stageId, txHash));
+}
+
+async function confirmMetadataStageLocked(stageId: string, txHash: Hex): Promise<PreparedMetadata> {
+  const stage = await getStage(stageId, true);
   if (stage.status === "committed") return stage.prepared;
   if (!stage.binding) throw new ApiError("Metadata is not bound to a launch.", 409);
 
@@ -342,8 +347,9 @@ export async function confirmMetadataStage(stageId: string, txHash: Hex): Promis
   if (receipt.transactionHash.toLowerCase() !== txHash.toLowerCase()) {
     throw new ApiError("Transaction receipt verification failed.", 409);
   }
+  if (stage.cleanupState === "pending") await store.restoreMetadataPublication(stageId);
   await store.markMetadataPublishing(stage.stageId, txHash);
-  const ready = await publishStageBytes(stage.stageId);
+  const ready = await publishStageBytesLocked(stage.stageId);
   const committed: PreparedMetadata = { ...ready, storage: { ...ready.storage, status: "committed" } };
   await store.completeMetadataStage(stage.stageId, committed, txHash);
   const launch = await store.getLaunch(stage.binding.idempotencyKey);
@@ -352,15 +358,27 @@ export async function confirmMetadataStage(stageId: string, txHash: Hex): Promis
 }
 
 export async function publishStageBytes(stageId: string): Promise<PreparedMetadata> {
+  return store.withPublicationLock(() => publishStageBytesLocked(stageId));
+}
+
+async function publishStageBytesLocked(stageId: string): Promise<PreparedMetadata> {
   const stage = await getStage(stageId);
   if (stage.status === "committed" || stage.prepared.storage.status === "ready") return stage.prepared;
+  for (const asset of [stage.prepared.logo, stage.prepared.contract]) {
+    if ((await store.metadataReferences(asset.cid, stageId)).some(ref => ref.cleanupState === "pending")) {
+      throw new ApiError("This logo is being cleaned up from an expired launch. Retry shortly.", 409);
+    }
+  }
   if (stage.status !== "publishing") throw new ApiError("Publication has not been authorized.", 403);
   if (!stage.logoBody || !stage.contractBody) {
     throw new ApiError("Staged metadata bytes are unavailable. Contact support before retrying.", 409);
   }
 
-  const logo = await uploadBuffer(stage.logoBody, stage.prepared.logo);
-  const contract = await uploadJson(stage.contractBody, stage.prepared.contract);
+  // The UUID namespace is durable before either request starts, including when
+  // an upload succeeds remotely but its response or the process is lost.
+  const names = stageUploadNames(stage.stageId);
+  const logo = await uploadBuffer(stage.logoBody, stage.prepared.logo, names.logo);
+  const contract = await uploadJson(stage.contractBody, stage.prepared.contract, names.contract);
   const started = Date.now();
   const verified = await Promise.all([
     readIpfs(logo.uri, MAX_LOGO_BYTES, logo.sha256),
@@ -411,6 +429,7 @@ async function publicationContext(input: PublicationInput) {
     `Transaction data hash: ${keccak256(stage.binding.attributedData)}`,
     `Launch: ${parsed.idempotencyKey}`, `Stage: ${stage.stageId}`,
     `Expires: ${new Date(deadline * 1000).toISOString()}`,
+    "If I do not launch within 24 hours, these uploads may be removed after onchain verification.",
     "I authorize public IPFS storage for this launch. This signature does not send a transaction or transfer funds."
   ].join("\n");
   return { parsed, stage, deadline, message };
@@ -433,8 +452,11 @@ export async function publishMetadata(input: PublicationInput) {
   if (!walletBudget.allowed) throw new ApiError("Daily wallet publication limit reached. Retry tomorrow.", 429);
   const globalBudget = await store.consumeRateLimit("publication:global", config.PUBLICATION_DAILY_LIMIT, 86400_000);
   if (!globalBudget.allowed) throw new ApiError("Publication capacity is temporarily full. Retry later.", 429);
-  if (!await store.armMetadataPublication(stage.stageId, parsed.idempotencyKey, stage.binding!.attributedData)) throw new ApiError("Launch package changed during approval.", 409);
   const fromBlock = (await publicClient.getBlockNumber()).toString();
+  // Save recovery information before arming: a process exit between these
+  // operations cannot strand paid uploads without a discovery job.
+  await store.setPublicationOrigin(stage.stageId, fromBlock);
+  if (!await store.armMetadataPublication(stage.stageId, parsed.idempotencyKey, stage.binding!.attributedData)) throw new ApiError("Launch package changed during approval.", 409);
   // Persist discovery BEFORE publishing or returning permission to broadcast.
   await pipelineStore.enqueue(`launch:${stage.stageId}`, "launch", { stageId: stage.stageId, fromBlock });
   await pipelineStore.enqueue(`publication:${stage.stageId}`, "publication", { stageId: stage.stageId });

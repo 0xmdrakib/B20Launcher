@@ -28,6 +28,8 @@ export type MetadataStageRecord<TPrepared = unknown> = {
     attributedData: Hex;
   };
   txHash?: Hex;
+  publicationFromBlock?: string;
+  cleanupState?: "pending" | "complete";
 };
 
 export type RateLimitResult = {
@@ -63,6 +65,12 @@ export interface Store {
   ): Promise<void>;
   markMetadataPublishing(stageId: string, txHash: Hex): Promise<void>;
   armMetadataPublication(stageId: string, idempotencyKey: string, attributedData: Hex): Promise<boolean>;
+  setPublicationOrigin(stageId: string, fromBlock: string): Promise<void>;
+  listUnfinishedPublications(after?: string): Promise<MetadataStageRecord[]>;
+  setMetadataCleanup(stageId: string, state: "pending" | "complete"): Promise<void>;
+  restoreMetadataPublication(stageId: string): Promise<void>;
+  metadataReferences(cid: string, exceptStage: string): Promise<MetadataStageRecord[]>;
+  withPublicationLock<T>(action: () => Promise<T>): Promise<T>;
   savePublishedMetadata(stageId: string, prepared: unknown): Promise<void>;
   completeMetadataStage(stageId: string, prepared: unknown, txHash: Hex): Promise<void>;
   deleteMetadataStage(stageId: string): Promise<void>;
@@ -75,6 +83,48 @@ class MemoryStore implements Store {
   private readonly launches = new Map<string, LaunchRecord>();
   private readonly metadataStages = new Map<string, MetadataStageRecord>();
   private readonly rateLimits = new Map<string, { windowStart: number; hits: number }>();
+  private publicationLocked = false;
+
+  async withPublicationLock<T>(action: () => Promise<T>): Promise<T> {
+    if (this.publicationLocked) throw new ApiError("Storage maintenance is running. Retry shortly.", 409);
+    this.publicationLocked = true;
+    try { return await action(); } finally { this.publicationLocked = false; }
+  }
+
+  async setPublicationOrigin(stageId: string, fromBlock: string) {
+    const stage = this.metadataStages.get(stageId);
+    if (stage && !stage.publicationFromBlock) this.metadataStages.set(stageId, { ...stage, publicationFromBlock: fromBlock });
+  }
+
+  async listUnfinishedPublications(after = "") {
+    return [...this.metadataStages.values()].filter(s => s.status === "publishing" && s.cleanupState !== "complete" && s.stageId > after)
+      .sort((a,b) => a.stageId.localeCompare(b.stageId)).slice(0, 50);
+  }
+
+  async setMetadataCleanup(stageId: string, state: "pending" | "complete") {
+    const stage = this.metadataStages.get(stageId);
+    if (!stage || stage.status !== "publishing") return;
+    const updated = { ...stage, cleanupState: state };
+    if (state === "complete") { delete updated.logoBody; delete updated.contractBody; updated.secretHash = "consumed"; }
+    this.metadataStages.set(stageId, updated);
+  }
+
+  async restoreMetadataPublication(stageId: string) {
+    const stage = this.metadataStages.get(stageId);
+    if (stage?.cleanupState !== "pending") return;
+    const prepared = stage.prepared as { storage: Record<string, unknown> };
+    const restored = { ...stage, prepared: { ...prepared, storage: { ...prepared.storage, status: "staged", verified: false } } };
+    delete restored.cleanupState;
+    this.metadataStages.set(stageId, restored);
+  }
+
+  async metadataReferences(cid: string, exceptStage: string) {
+    return [...this.metadataStages.values()].filter(s => {
+      const p = s.prepared as { logo?: { cid?: string }; contract?: { cid?: string } };
+      return s.stageId !== exceptStage && (s.status === "committed" || (s.status === "publishing" && s.cleanupState !== "complete"))
+        && (p.logo?.cid === cid || p.contract?.cid === cid);
+    });
+  }
 
   async initialize() {}
 
@@ -128,7 +178,11 @@ class MemoryStore implements Store {
     const stage = this.metadataStages.get(stageId);
     if (!stage || stage.binding?.idempotencyKey !== idempotencyKey || stage.binding.attributedData.toLowerCase() !== attributedData.toLowerCase()
       || Date.parse(stage.expiresAt) <= Date.now() || !["bound", "publishing"].includes(stage.status)) return false;
-    this.metadataStages.set(stageId, { ...stage, status: "publishing", expiresAt: new Date(Date.now() + 30 * 86400_000).toISOString() });
+    if (stage.cleanupState) return false;
+    if (stage.status === "bound" && [...this.metadataStages.values()].filter(s => s.status === "publishing" && s.cleanupState !== "complete").length >= config.PUBLICATION_PENDING_LIMIT) {
+      throw new ApiError("Unfinished launch capacity is full. Retry after storage maintenance.", 429);
+    }
+    this.metadataStages.set(stageId, { ...stage, status: "publishing", expiresAt: stage.status === "bound" ? new Date(Date.now() + 86400_000).toISOString() : stage.expiresAt });
     return true;
   }
 
@@ -170,7 +224,7 @@ class MemoryStore implements Store {
     const now = Date.now();
     let removed = 0;
     for (const [stageId, stage] of this.metadataStages) {
-      if (stage.status !== "committed" && Date.parse(stage.expiresAt) <= now) {
+      if (["staged", "bound"].includes(stage.status) && Date.parse(stage.expiresAt) <= now) {
         this.metadataStages.delete(stageId);
         removed += 1;
       }
@@ -244,6 +298,12 @@ export class PostgresStore implements Store {
         ALTER TABLE b20_metadata_stages
         DROP CONSTRAINT IF EXISTS b20_metadata_stages_contract_uri_key
       `;
+      await sql`ALTER TABLE b20_metadata_stages ADD COLUMN IF NOT EXISTS publication_from_block TEXT`;
+      await sql`ALTER TABLE b20_metadata_stages ADD COLUMN IF NOT EXISTS cleanup_state TEXT`;
+      await sql`CREATE INDEX IF NOT EXISTS b20_metadata_logo_cid_idx ON b20_metadata_stages ((prepared->'logo'->>'cid'))`;
+      await sql`CREATE INDEX IF NOT EXISTS b20_metadata_contract_cid_idx ON b20_metadata_stages ((prepared->'contract'->>'cid'))`;
+      await sql`CREATE INDEX IF NOT EXISTS b20_metadata_unfinished_idx ON b20_metadata_stages (stage_id)
+        WHERE status = 'publishing' AND cleanup_state IS DISTINCT FROM 'complete'`;
       await sql`
         CREATE INDEX IF NOT EXISTS b20_metadata_stages_expiry_idx
         ON b20_metadata_stages (expires_at)
@@ -345,6 +405,8 @@ export class PostgresStore implements Store {
       expiresAt: new Date(row.expires_at as string).toISOString(),
       prepared: row.prepared,
       status: row.status as MetadataStageRecord["status"],
+      ...(row.publication_from_block ? { publicationFromBlock: String(row.publication_from_block) } : {}),
+      ...(row.cleanup_state ? { cleanupState: row.cleanup_state as "pending" | "complete" } : {}),
       ...(row.logo_body ? { logoBody: Buffer.from(row.logo_body as Uint8Array) } : {}),
       ...(row.contract_body ? { contractBody: row.contract_body as string } : {}),
       ...(binding ? { binding } : {}),
@@ -375,11 +437,66 @@ export class PostgresStore implements Store {
   async close() { await this.sql.end(); }
 
   async armMetadataPublication(stageId: string, idempotencyKey: string, attributedData: Hex) {
-    const rows = await this.sql`UPDATE b20_metadata_stages SET status = 'publishing',
-      expires_at = GREATEST(expires_at, NOW() + INTERVAL '30 days'), updated_at = NOW()
-      WHERE stage_id = ${stageId} AND idempotency_key = ${idempotencyKey} AND LOWER(attributed_data) = ${attributedData.toLowerCase()}
-        AND expires_at > NOW() AND status IN ('bound', 'publishing') RETURNING stage_id`;
-    return rows.length === 1;
+    return this.sql.begin(async sql => {
+      await sql`SELECT pg_advisory_xact_lock(8453, 2005)`;
+      const [capacity] = await sql`SELECT COUNT(*)::int AS pending FROM b20_metadata_stages
+        WHERE status = 'publishing' AND cleanup_state IS DISTINCT FROM 'complete' AND stage_id <> ${stageId}`;
+      if (Number(capacity?.pending) >= config.PUBLICATION_PENDING_LIMIT) throw new ApiError("Unfinished launch capacity is full. Retry after storage maintenance.", 429);
+      const rows = await sql`UPDATE b20_metadata_stages SET status = 'publishing',
+        expires_at = CASE WHEN status = 'bound' THEN NOW() + INTERVAL '24 hours' ELSE expires_at END, updated_at = NOW()
+        WHERE stage_id = ${stageId} AND idempotency_key = ${idempotencyKey} AND LOWER(attributed_data) = ${attributedData.toLowerCase()}
+          AND expires_at > NOW() AND cleanup_state IS NULL AND status IN ('bound', 'publishing') RETURNING stage_id`;
+      return rows.length === 1;
+    });
+  }
+
+  async withPublicationLock<T>(action: () => Promise<T>): Promise<T> {
+    // Nonblocking: waiting maintenance requests must not exhaust the pool used
+    // by the active operation. The lock survives awaits and spans replicas.
+    let result: T;
+    await this.sql.begin(async sql => {
+      const [row] = await sql`SELECT pg_try_advisory_xact_lock(8453, 2004) AS acquired`;
+      if (!row?.acquired) throw new ApiError("Storage maintenance is running. Retry shortly.", 409);
+      result = await action();
+    });
+    return result!;
+  }
+
+  async setPublicationOrigin(stageId: string, fromBlock: string) {
+    await this.sql`UPDATE b20_metadata_stages SET publication_from_block = ${fromBlock}
+      WHERE stage_id = ${stageId} AND publication_from_block IS NULL AND cleanup_state IS NULL`;
+  }
+
+  async listUnfinishedPublications(after?: string) {
+    const rows = await this.sql`SELECT stage_id, secret_hash, contract_uri, expires_at, prepared, status,
+      idempotency_key, tx_to, attributed_data, tx_hash, publication_from_block, cleanup_state
+      FROM b20_metadata_stages WHERE status = 'publishing'
+      AND cleanup_state IS DISTINCT FROM 'complete' AND (${after ?? null}::uuid IS NULL OR stage_id > ${after ?? null}::uuid)
+      ORDER BY stage_id LIMIT 50`;
+    return rows.map(row => this.fromMetadataRow(row));
+  }
+
+  async setMetadataCleanup(stageId: string, state: "pending" | "complete") {
+    await this.sql`UPDATE b20_metadata_stages SET cleanup_state = ${state}, updated_at = NOW(),
+      logo_body = CASE WHEN ${state === "complete"} THEN NULL ELSE logo_body END,
+      contract_body = CASE WHEN ${state === "complete"} THEN NULL ELSE contract_body END,
+      secret_hash = CASE WHEN ${state === "complete"} THEN 'consumed' ELSE secret_hash END
+      WHERE stage_id = ${stageId} AND status = 'publishing'`;
+  }
+
+  async restoreMetadataPublication(stageId: string) {
+    await this.sql`UPDATE b20_metadata_stages SET cleanup_state = NULL,
+      prepared = jsonb_set(jsonb_set(prepared, '{storage,status}', '"staged"'::jsonb), '{storage,verified}', 'false'::jsonb)
+      WHERE stage_id = ${stageId} AND cleanup_state = 'pending'`;
+  }
+
+  async metadataReferences(cid: string, exceptStage: string) {
+    const rows = await this.sql`SELECT stage_id, secret_hash, contract_uri, expires_at, prepared, status,
+      idempotency_key, tx_to, attributed_data, tx_hash, publication_from_block, cleanup_state
+      FROM b20_metadata_stages WHERE stage_id <> ${exceptStage}
+      AND (status = 'committed' OR (status = 'publishing' AND cleanup_state IS DISTINCT FROM 'complete'))
+      AND (prepared->'logo'->>'cid' = ${cid} OR prepared->'contract'->>'cid' = ${cid})`;
+    return rows.map(row => this.fromMetadataRow(row));
   }
 
   async savePublishedMetadata(stageId: string, prepared: unknown) {
@@ -412,7 +529,7 @@ export class PostgresStore implements Store {
   async cleanupMetadataStages() {
     const rows = await this.sql`
       DELETE FROM b20_metadata_stages
-      WHERE status <> 'committed' AND expires_at <= NOW()
+      WHERE status IN ('staged', 'bound') AND expires_at <= NOW()
       RETURNING stage_id
     `;
     await this.sql`

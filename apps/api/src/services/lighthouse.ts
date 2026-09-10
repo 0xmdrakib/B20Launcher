@@ -17,6 +17,52 @@ const uploadResponseSchema = z.object({
 
 export type LighthouseUploadResult = z.infer<typeof uploadResponseSchema>;
 
+const managedFileSchema = z.object({ id: z.string().uuid(), cid: z.string().min(1), fileName: z.string() });
+export type LighthouseFile = z.infer<typeof managedFileSchema>;
+
+export function stageUploadNames(stageId: string) {
+  z.string().uuid().parse(stageId);
+  return { logo: `b20-${stageId}-logo.png`, contract: `b20-${stageId}-profile.json` };
+}
+
+// Account inventory only; never retrieve unrelated file contents. A full,
+// validated listing is required before absence can be treated as deletion.
+export async function listLighthouseAnnualFiles(apiKey: string): Promise<LighthouseFile[]> {
+  const files = new Map<string, LighthouseFile>();
+  let lastKey = "null";
+  for (let page = 0; page < 20; page++) {
+    const response = await fetch(`${LIGHTHOUSE_UPLOADS_URL}&lastKey=${encodeURIComponent(lastKey)}`, {
+      headers: { Authorization: `Bearer ${apiKey}` }, signal: AbortSignal.timeout(15_000), redirect: "error"
+    });
+    if (!response.ok) throw new ApiError("Storage inventory could not be verified.", 502);
+    const parsed = z.object({ fileList: z.array(managedFileSchema) }).safeParse(await response.json());
+    if (!parsed.success) throw new ApiError("Storage inventory was invalid.", 502);
+    const batch = parsed.data.fileList;
+    if (!batch.length) return [...files.values()];
+    for (const file of batch) {
+      if (files.has(file.id)) throw new ApiError("Storage inventory pagination did not advance.", 502);
+      files.set(file.id, file);
+    }
+    lastKey = batch.at(-1)!.id;
+    // Official API pages contain at most 2,000 files. Request the next page even
+    // for short batches, avoiding reliance on inconsistent totalFiles values.
+  }
+  throw new ApiError("Storage inventory exceeded the maintenance batch limit.", 503);
+}
+
+export async function deleteLighthouseFile(fileId: string, apiKey: string): Promise<void> {
+  z.string().uuid().parse(fileId);
+  const response = await fetch(`https://api.lighthouse.storage/api/user/delete_file?id=${encodeURIComponent(fileId)}`, {
+    method: "DELETE", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(15_000), redirect: "error"
+  });
+  if (!response.ok) throw new ApiError("Storage cleanup is pending retry.", 502);
+  const payload = z.object({ message: z.string() }).safeParse(await response.json());
+  if (!payload.success || !/^File deleted successfully\.?$/i.test(payload.data.message)) {
+    throw new ApiError("Storage deletion was not confirmed.", 502);
+  }
+}
+
 const usageResponseSchema = z.object({
   dataLimit: z.number(),
   dataLimitPermanent: z.number().default(0)
@@ -121,7 +167,7 @@ export async function uploadToLighthouse(
   try {
     response = await fetch(LIGHTHOUSE_UPLOAD_URL, {
       method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}` },
+      headers: { Authorization: `Bearer ${apiKey}`, "X-Storage-Type": "annual" },
       body: form,
       signal: AbortSignal.timeout(120_000)
     });

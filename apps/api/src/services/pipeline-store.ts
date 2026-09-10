@@ -87,6 +87,14 @@ export class PipelineStore {
     const [row] = await this.sql`SELECT * FROM b20_token_snapshots WHERE address = ${address}`;
     return row ? { address, document: row.document, revision: Number(row.revision), updatedAt: new Date(row.updated_at).toISOString() } : undefined;
   }
+  async referencesCid(cid: string): Promise<boolean> {
+    await this.initialize();
+    const uri = `ipfs://${cid}`;
+    if (!this.sql) return [...this.snapshots.values()].some(s => s.document.contractURI === uri || s.document.imageIpfs === uri);
+    const [row] = await this.sql`SELECT address FROM b20_token_snapshots
+      WHERE document->>'contractURI' = ${uri} OR document->>'imageIpfs' = ${uri} LIMIT 1`;
+    return Boolean(row);
+  }
   async getSnapshots(addresses: string[]) {
     await this.initialize();
     const keys = addresses.map(address => address.toLowerCase());

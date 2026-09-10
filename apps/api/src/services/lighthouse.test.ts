@@ -1,9 +1,34 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { assertLighthouseUploadAvailable, uploadToLighthouse } from "./lighthouse.js";
+import { assertLighthouseUploadAvailable, uploadToLighthouse, listLighthouseAnnualFiles, deleteLighthouseFile } from "./lighthouse.js";
 
 describe("Lighthouse upload adapter", () => {
   afterEach(() => vi.unstubAllGlobals());
+
+  it("paginates annual inventory by file ID and rejects nonadvancing pages", async () => {
+    const file = { id: "11111111-1111-4111-8111-111111111111", cid: "bafy-test", fileName: "test.png" };
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ fileList: [file] })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ fileList: [] })));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await listLighthouseAnnualFiles("secret")).toEqual([file]);
+    expect(fetchMock.mock.calls[1]![0]).toContain(`lastKey=${file.id}`);
+    expect(fetchMock.mock.calls[0]![0]).toContain("fileType=annual");
+    fetchMock.mockImplementation(async () => new Response(JSON.stringify({ fileList: [file] })));
+    await expect(listLighthouseAnnualFiles("secret")).rejects.toThrow("did not advance");
+  });
+
+  it("deletes by UUID rather than CID and fails closed on an ambiguous success", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ message: "File deleted successfully." })))
+      .mockResolvedValueOnce(new Response("{}"));
+    vi.stubGlobal("fetch", fetchMock);
+    const id = "11111111-1111-4111-8111-111111111111";
+    await deleteLighthouseFile(id, "secret");
+    expect(fetchMock.mock.calls[0]![0]).toContain(`/delete_file?id=${id}`);
+    expect(fetchMock.mock.calls[0]![1].method).toBe("DELETE");
+    await expect(deleteLighthouseFile(id, "secret")).rejects.toThrow("not confirmed");
+    await expect(deleteLighthouseFile("bafy-test", "secret")).rejects.toThrow();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 
   it("forces the same CIDv1 DAG-PB codec used during metadata staging", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
@@ -23,7 +48,7 @@ describe("Lighthouse upload adapter", () => {
     expect(url).toContain("cid-version=1");
     expect(url).toContain("raw-leaves=false");
     expect(url).toContain("wrap-with-directory=false");
-    expect(request.headers).toEqual({ Authorization: "Bearer secret" });
+    expect(request.headers).toEqual({ Authorization: "Bearer secret", "X-Storage-Type": "annual" });
     expect(request.body).toBeInstanceOf(FormData);
   });
 

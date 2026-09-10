@@ -10,6 +10,7 @@ import { readIpfs, resolveIpfs } from "./ipfs-reader.js";
 import { pipelineStore, type PipelineJob } from "./pipeline-store.js";
 import { projectPublishedToken } from "./public-tokens.js";
 import { ensureStoreReady, store, type PublishedTokenSource } from "./store.js";
+import { CLEANUP_GRACE_MS, cleanupAbandonedMetadata } from "./metadata-cleanup.js";
 
 const client = createPublicClient({ transport: http(config.BASE_RPC_URL, { timeout: 12_000, retryCount: 2, retryDelay: 1000 }) });
 const identityAbi = parseAbi([
@@ -52,9 +53,25 @@ async function bootstrapPublishedTokens() {
   await pipelineStore.writeState("bootstrap-after", sources.length === 50 ? sources.at(-1)!.address : "");
 }
 
+async function bootstrapUnfinishedPublications() {
+  const after = await pipelineStore.readState("publication-bootstrap-after");
+  const stages = await store.listUnfinishedPublications(after || undefined);
+  for (const stage of stages) {
+    if (stage.publicationFromBlock) await pipelineStore.enqueue(`launch:${stage.stageId}`, "launch", {
+      stageId: stage.stageId, fromBlock: stage.publicationFromBlock
+    });
+    const prepared = stage.prepared as { storage?: { status?: string } };
+    if (stage.publicationFromBlock && !stage.cleanupState && Date.parse(stage.expiresAt) > Date.now()
+      && prepared.storage?.status !== "ready") {
+      await pipelineStore.enqueue(`publication:${stage.stageId}`, "publication", { stageId: stage.stageId });
+    }
+  }
+  await pipelineStore.writeState("publication-bootstrap-after", stages.length === 50 ? stages.at(-1)!.stageId : "");
+}
+
 export async function discoverLaunch(job: PipelineJob) {
   const stage = await store.getMetadataStage(String(job.data.stageId));
-  if (!stage || stage.status === "committed") { await pipelineStore.finish(job, null); return; }
+  if (!stage || stage.status === "committed" || stage.cleanupState === "complete") { await pipelineStore.finish(job, null); return; }
   if (!stage.binding) throw new Error("Launch binding missing");
   const launch = await store.getLaunch(stage.binding.idempotencyKey);
   if (!launch) throw new Error("Launch package missing");
@@ -62,13 +79,22 @@ export async function discoverLaunch(job: PipelineJob) {
   // sequencer block. Failed RPC calls never advance a scan cursor.
   const safe = await client.getBlock({ blockTag: "safe" });
   const fromBlock = BigInt(String(job.data.cursor ?? job.data.fromBlock));
-  if (fromBlock > safe.number) { await pipelineStore.finish(job, 30_000); return; }
+  const cleanupDue = Number(safe.timestamp) * 1000 >= Date.parse(stage.expiresAt) + CLEANUP_GRACE_MS;
+  if (fromBlock > safe.number) {
+    if (cleanupDue && await cleanupAbandonedMetadata(stage.stageId)) await pipelineStore.finish(job, null);
+    else await pipelineStore.finish(job, 30_000);
+    return;
+  }
   const toBlock = fromBlock + 999n < safe.number ? fromBlock + 999n : safe.number;
   const logs = await client.getLogs({ address: stage.binding.to, event: launchEvent,
     args: { token: launch.predictedToken as Address }, fromBlock, toBlock, strict: true });
   for (const log of logs) {
     if (!log.transactionHash || log.args.contractURI !== stage.contractUri) continue;
     await confirmMetadataStage(stage.stageId, log.transactionHash);
+    await pipelineStore.finish(job, null);
+    return;
+  }
+  if (toBlock === safe.number && cleanupDue && await cleanupAbandonedMetadata(stage.stageId)) {
     await pipelineStore.finish(job, null);
     return;
   }
@@ -143,6 +169,7 @@ export async function runTokenIndexer(options: { budgetMs?: number; maxJobs?: nu
   await ensureStoreReady();
   await pipelineStore.initialize();
   await bootstrapPublishedTokens();
+  await bootstrapUnfinishedPublications();
   const end = Date.now() + (options.budgetMs ?? 40_000);
   let processed = 0, failed = 0;
   while (Date.now() < end && processed < (options.maxJobs ?? 20)) {
@@ -153,6 +180,10 @@ export async function runTokenIndexer(options: { budgetMs?: number; maxJobs?: nu
       if (job.kind === "launch") await discoverLaunch(job);
       else if (job.kind === "token") await reconcileToken(job);
       else {
+        const stage = await store.getMetadataStage(String(job.data.stageId));
+        if (!stage || stage.status === "committed" || stage.cleanupState || Date.parse(stage.expiresAt) <= Date.now()) {
+          await pipelineStore.finish(job, null); continue;
+        }
         // Publication was wallet-authorized before enqueueing. Bound automatic
         // retries; further attempts require another authenticated request.
         if (job.attempts >= 3) { await pipelineStore.finish(job, 86400_000, job.data, "Publication requires client retry"); continue; }

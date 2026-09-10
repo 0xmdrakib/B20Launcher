@@ -11,7 +11,7 @@ import { bindMetadataStage, commitMetadata, prepareMetadata, publicationChalleng
 const rpc = vi.hoisted(() => ({ verifyMessage: vi.fn(), getBlockNumber: vi.fn(), getTransaction: vi.fn(), getTransactionReceipt: vi.fn() }));
 const upload = vi.hoisted(() => vi.fn());
 vi.mock("viem", async original => ({ ...await original<typeof import("viem")>(), createPublicClient: () => rpc }));
-vi.mock("./lighthouse.js", () => ({ uploadToLighthouse: upload }));
+vi.mock("./lighthouse.js", async original => ({ ...await original<typeof import("./lighthouse.js")>(), uploadToLighthouse: upload }));
 const router = "0x1111111111111111111111111111111111111111" as const;
 const txHash = `0x${"ab".repeat(32)}` as const;
 const stages: string[] = [];
@@ -20,6 +20,7 @@ beforeEach(() => {
   config.B20_LAUNCH_ROUTER_ADDRESS = router;
   config.LIGHTHOUSE_API_KEY = "test-only";
   config.PUBLICATION_DAILY_LIMIT = 100;
+  config.PUBLICATION_PENDING_LIMIT = 200;
   rpc.verifyMessage.mockImplementation(verifyMessage);
   rpc.getBlockNumber.mockResolvedValue(100n);
   upload.mockImplementation(async (body: Buffer | string) => ({ Hash: await Hash.of(body, { cidVersion: 1 }) }));
@@ -44,6 +45,26 @@ async function fixture() {
   return { prepared, approval, challenge, signature };
 }
 describe("wallet-authorized prepublication", () => {
+  it("does not extend retention on retry and preserves expired publication evidence", async () => {
+    const f = await fixture();
+    await publishMetadata({ ...f.approval, deadline: f.challenge.deadline, signature: f.signature });
+    const first = (await store.getMetadataStage(f.prepared.stageId))!;
+    expect(Date.parse(first.expiresAt)-Date.now()).toBeLessThanOrEqual(86400_000);
+    await store.armMetadataPublication(first.stageId, f.approval.idempotencyKey, "0x1234");
+    expect((await store.getMetadataStage(first.stageId))!.expiresAt).toBe(first.expiresAt);
+    await store.saveMetadataStage({ ...first, expiresAt: new Date(0).toISOString() });
+    await expect(publicationChallenge(f.approval)).rejects.toMatchObject({ status: 410 });
+    await store.cleanupMetadataStages();
+    expect((await store.getMetadataStage(first.stageId))!.logoBody).toBeDefined();
+  });
+  it("stops new uploads when abandoned-publication capacity is full", async () => {
+    const first = await fixture();
+    await store.armMetadataPublication(first.prepared.stageId, first.approval.idempotencyKey, "0x1234");
+    config.PUBLICATION_PENDING_LIMIT = 1;
+    const second = await fixture();
+    await expect(publishMetadata({ ...second.approval, deadline: second.challenge.deadline, signature: second.signature })).rejects.toMatchObject({ status: 429 });
+    expect(upload).not.toHaveBeenCalled();
+  });
   it("verifies both public files before launch, locks the package, and avoids uploading again after confirmation", async () => {
     const f = await fixture();
     expect(upload).not.toHaveBeenCalled();

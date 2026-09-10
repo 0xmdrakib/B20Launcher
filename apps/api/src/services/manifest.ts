@@ -3,7 +3,7 @@ import { config } from "../config.js";
 export function getAgentManifest() {
   return {
     name: "B20 Launcher Agent API",
-    version: "0.2.0",
+    version: "0.2.1",
     chainId: config.BASE_CHAIN_ID,
     capabilities: [
       {
@@ -42,7 +42,9 @@ export function getAgentManifest() {
         method: "POST",
         path: "/api/metadata/publish",
         input: "{ stageId, stageToken, idempotencyKey, account, deadline, signature }",
-        behavior: "Pins and verifies logo and profile bytes, then arms durable launch discovery. Broadcast only after storage.status is ready and verified is true."
+        unlaunchedRetentionSeconds: 86400,
+        cleanupGraceSeconds: 3600,
+        behavior: "Pins and verifies logo and profile bytes with durable launch discovery. Broadcast only after storage.status is ready and verified is true, within the transaction and publication expiry. Abandoned owned annual uploads are automatically removed after onchain checks."
       },
       {
         id: "b20.commit_public_metadata",
